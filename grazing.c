@@ -18,12 +18,6 @@
 #include "shader.h"
 const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.1-1,1,1);}";
 
-#define CANVAS_WIDTH 1920
-#define CANVAS_HEIGHT 1080
-#define LABEL_WIDTH 1300
-#define LABEL_HEIGHT 1000
-#define CHAR_BUFF_SIZE 256
-
 #define DEBUG_FRAG
 #define DEBUG_VERT
 #define CHAR_BUFFER_SIZE 4096
@@ -34,6 +28,8 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 bool windowed = false;
 bool rendered = false;
 bool flipped = false;
+int canvasX = 1920;
+int canvasY = 1080;
 
 GdkWindow* window;
 #ifdef TIME_RENDER
@@ -58,10 +54,8 @@ static inline void compile_shader()
 {
 	char* samples = getenv("SAMPLES");
 	if (samples == NULL) samples = "150";
-	char* resolution = getenv("RESOLUTION");
-	if (resolution == NULL) resolution = "1920,1080";
-	char buffer [100];
-	sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%s)\n", samples, resolution);
+	char buffer [CHAR_BUFFER_SIZE];
+	sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%d,%d)\n", samples, canvasX, canvasY);
 
 	//todo: amdgpu doesn't like this at all
 	const char* shader_frag_list[] = {buffer, shader_frag};
@@ -76,15 +70,15 @@ static inline void compile_shader()
 	glBindProgramPipeline(p);
 
 #if defined(DEBUG_FRAG) || defined(DEBUG_VERT)
-	char charbuf[CHAR_BUFFER_SIZE];
+	// char charbuf[CHAR_BUFFER_SIZE];
 	if ((p = glGetError()) != GL_NO_ERROR) { //use p to hold the error, lmao
 #ifdef DEBUG_FRAG
-		glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, charbuf);
-		printf(charbuf);
+		glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, buffer);
+		printf(buffer);
 #endif
 #ifdef DEBUG_VERT
-		glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, charbuf);
-		printf(charbuf);
+		glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, buffer);
+		printf(buffer);
 #endif
 		SYS_exit_group(p);
 		__builtin_unreachable();
@@ -101,7 +95,7 @@ on_render (GtkGLArea *glarea, GdkGLContext *context)
 {
 	(void)context;
 	if (rendered || (!windowed && !(gdk_window_get_state(window) & GDK_WINDOW_STATE_FULLSCREEN))) return TRUE;
-	if (!flipped) { gtk_gl_area_queue_render(glarea); flipped = true; return TRUE; }
+	if (!flipped) { glClear(GL_COLOR_BUFFER_BIT); gtk_gl_area_queue_render(glarea); flipped = true; return TRUE; }
 #ifdef TIME_RENDER
 	gtimer = g_timer_new();
 #endif
@@ -152,13 +146,32 @@ void _start() {
 
 	windowed = getenv("WINDOWED");
 
+	char* resolution = getenv("RESOLUTION");
+	// int* res = &canvasX;
+	if (resolution != NULL) {
+		//failed experiment
+		// canvasX=0;canvasY=0;
+		// for (int i=0;i<2;resolution++) {
+		// 	char chr = *resolution;
+		// 	if (chr == 'x' || chr == '\0') {
+		// 		i++;res=&canvasY;
+		// 		continue;
+		// 	}
+		// 	*res *= 10;
+		// 	*res += (int)(chr-'0');
+		// }
+		sscanf(resolution, "%dx%d", &canvasX, &canvasY);
+	}
+	// printf("%dx%d\n", canvasX, canvasY);
+	// goto quit_asm;
+
 	GdkGeometry hints;
-	hints.base_height = CANVAS_HEIGHT;
-	hints.min_height = CANVAS_HEIGHT;
-	hints.max_height = CANVAS_HEIGHT;
-	hints.base_width = CANVAS_WIDTH;
-	hints.min_width = CANVAS_WIDTH;
-	hints.max_width = CANVAS_WIDTH;
+	hints.base_height = canvasY;
+	hints.min_height = canvasY;
+	hints.max_height = canvasY;
+	hints.base_width = canvasX;
+	hints.min_width = canvasX;
+	hints.max_width = canvasX;
 	gtk_window_set_geometry_hints ((GtkWindow*)win, NULL, &hints, GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_MAX_SIZE);
 	if (!windowed) gtk_window_fullscreen((GtkWindow*)win);
 	window = gtk_widget_get_window(win);

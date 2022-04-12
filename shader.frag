@@ -80,35 +80,45 @@ float walking_beam(vec3 p) {
 
 }
 
-float ladder(vec3 p) {
-    return obj(p,vec3(0.0700,10.5,.4),
-        -0.0800,0.02,tri(p.y,10.),1e4);
-}
-
-float cage(vec3 p) {
-    p-=vec3(0,0.3000,2.);
-    p=vec3(length(p.xy)-0.3500,atan(p.x,p.y)/3.2,p.z);
-    return obj(p,vec3(0.0700,1.5,8.),
-        -0.1700,0.02,min(abs(tri(p.y,10.)),abs(tri(p.z,3.))),1e4);
-}
+// float ladder(vec3 p) {
+//     return obj(p,vec3(0.0700,10.5,.4),
+//         -0.0800,0.02,tri(p.y,10.),1e4);
+// }
 
 float ladder_all(vec3 p) {
-    float l = ladder(p.yzx);
-    float c = cage(p);
-    return min(c,l);
+    vec3 p2 = p.yzx;
+    p-=vec3(0,0.3000,2.);
+    p=vec3(length(p.xy)-0.3500,atan(p.x,p.y)/3.2,p.z);
+    return min(obj(p2,vec3(0.0700,10.5,.4),
+        -0.0800,0.02,tri(p2.y,10.),1e4),
+        obj(p,vec3(0.0700,1.5,8.),
+        -0.1700,0.02,min(abs(tri(p.y,10.)),abs(tri(p.z,3.))),1e4));
+    // return obj(p2,vec3(0.0700,10.5,.4),
+    //     -0.0800,0.02,tri(p2.y,10.),1e4);
+    // return obj(p,vec3(0.0700,1.5,8.),
+    //     -0.1700,0.02,min(abs(tri(p.y,10.)),abs(tri(p.z,3.))),1e4);
 }
 
+// float ladder_all(vec3 p) {
+//     float l = ladder(p.yzx);
+//     float c = cage(p);
+//     return min(c,l);
+// }
+
 float chonker(vec3 p) {
+    p.y-=2.7;
+    p.z-=2.02;
     return obj(p,vec3(1.5,3.,2.3),
         1.3,0.02,abs(tri(p.y,4.3))-0.1400,1.6);
 }
 
 float base(vec3 p) {
-    float front = obj(p.yxz-vec3(-3.9,0,0),vec3(0.3600,2.9,0.8500),
+    p.z -= 0.3800;
+    float front = obj(p.yxz-vec3(-3.9,0,0),vec3(0.3600,2.9,0.9500),
         0.02,0.02,p.y,1e4);
     p.x=abs(p.x);
     p.xy-=vec2(0.5500, 1.);
-    float sides = obj(p.xyz,vec3(0.3300,9.3,0.8500),
+    float sides = obj(p.xyz,vec3(0.3300,9.3,0.900),
         0.02,0.02,p.y-1.,1e4);
     return min(front,sides);
 }
@@ -138,23 +148,23 @@ float legs(vec3 p) {
     return min(min(min(base,bearing),otherleg),leg);
 }
 
-float back_bench(vec3 p) {
-    //float k = length(vec2(length(p.xz-vec2(.5,1.6))-0.2000,p.y-6.1))-0.0150; //random ring for visual interest
-    float ox = p.x;
-    p.x = abs(p.x)-.5;
-    p.y -= 5.;
-    p.z -= 1.8;
-    p.y=-abs(p.y);
-    p.yz-=min(dot(p.yz,vec2(-.4,.85))*2.,0.)*vec2(-.4,.85);
-    float b = box(p,vec3(0.2000,2.3,0.02));
-    p.z-=0.0500;p.y=abs(p.y)-0.7000;p.y=abs(p.y)-0.2000;p.x+=0.4000;
-    b = min(b, box(p,vec3(1.,0.2000,0.02)) );
-    //p.x-=0.4000;
-    //vec2 crds = vec2(length(p.xy),p.z+0.0200);
-    //b = min(b, box(crds,vec2(0.0200,0.1200)) );
-    return b-0.0100;
-    //return min(b-0.0100,k);
-}
+// float back_bench(vec3 p) {
+//     //float k = length(vec2(length(p.xz-vec2(.5,1.6))-0.2000,p.y-6.1))-0.0150; //random ring for visual interest
+//     float ox = p.x;
+//     p.x = abs(p.x)-.5;
+//     p.y -= 5.;
+//     p.z -= 1.8;
+//     p.y=-abs(p.y);
+//     p.yz-=min(dot(p.yz,vec2(-.4,.85))*2.,0.)*vec2(-.4,.85);
+//     float b = box(p,vec3(0.2000,2.3,0.02));
+//     p.z-=0.0500;p.y=abs(p.y)-0.7000;p.y=abs(p.y)-0.2000;p.x+=0.4000;
+//     b = min(b, box(p,vec3(1.,0.2000,0.02)) );
+//     //p.x-=0.4000;
+//     //vec2 crds = vec2(length(p.xy),p.z+0.0200);
+//     //b = min(b, box(crds,vec2(0.0200,0.1200)) );
+//     return b-0.0100;
+//     //return min(b-0.0100,k);
+// }
 float fence(vec3 p) {
     float oy = p.y;
     p.z -= 1.1; p.y -= 2.;p.xy=abs(p.xy);p.z*=-1.;
@@ -266,10 +276,10 @@ float scene(vec3 p) {
     vec2 id = round(p.xy/60.)*60.;
     p.xy -= id;
     
-    float ang = sin(dot(id,vec2(7e4,5e3)))*2e3+2.;
+    float ang = sin(dot(id,vec2(5e4,5e3)))*2e3+2.;
     p=xy(p,sin(ang)*.1);
     p.xy+=fract(ang)*4.-2.;
-    vec2 sprocket = apos - vec2(cos(ang),sin(ang))*2.;
+    vec2 sprocket = apos - vec2(cos(ang),sin(ang))*2.1;
     vec2 bearing = poop(bpos, sprocket, 4.6,6.4);
     vec2 cable = mix(bearing,bpos,2.32);
     vec2 rel = bearing-bpos;
@@ -278,21 +288,21 @@ float scene(vec3 p) {
     float ang3 = -atan(rel2.x,rel2.y);
 
     //return min(walking_beam(p), ladder_all(yz(p,.1)-vec3(0.8000,1.,-6.)));
-    float pumpjack = base(p-vec3(0,0,0.3800));
-    pumpjack = min(pumpjack, chonker(p-vec3(0,2.7,2.02)));
+    float pumpjack = base(p);
+    pumpjack = min(pumpjack, chonker(p));
     pumpjack=min(pumpjack,ladder_all(yz(p*vec3(1,-1,1),.2)-vec3(1.,4.3,4.75))); //todo: flip inside ladder_all..?
     vec3 pbeam = (p-vec3(0,bpos))*vec3(1,-1,1);
     pbeam=yz(pbeam,ang2);
     pumpjack=min(pumpjack,walking_beam(pbeam));
     pumpjack=min(pumpjack,legs(p));
-    pumpjack=min(pumpjack,back_bench(p));
+    // pumpjack=min(pumpjack,back_bench(p));
     pumpjack=min(pumpjack,fence(p));
     pumpjack=min(pumpjack,gearbox(p));
     vec3 epos = p-vec3(0.,bearing);
     epos = yz(epos,ang3);
     pumpjack=min(pumpjack,counterweights(p, ang));
     pumpjack=min(pumpjack,equalizer(epos));
-    pumpjack=min(pumpjack,wireline(p,cable.y));
+    return min(pumpjack,wireline(p,cable.y));
     
     /*debugging for linkage positions
     pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,sprocket))-.2);
@@ -300,7 +310,7 @@ float scene(vec3 p) {
     pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,bpos))-.2);
     pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,apos))-.2);
     */
-    return pumpjack;
+    // return pumpjack;
     //return ladder_all(p);
 }
 
@@ -311,9 +321,10 @@ vec3 norm(vec3 p) {
 
 //todo: replace with smaller hashfunc
 float hash(float a, float b) {
-    int x = floatBitsToInt(a*a/7.)^floatBitsToInt(a+.1);
-    int y = floatBitsToInt(b*b/7.)^floatBitsToInt(b+.1);
-    return float((x*x+y)*(y*y-x)-x)/2.14e9;
+    return fract(sin(a*12.9898+b*78.233) * 43758.5453)*2.-1.;
+    //int x = floatBitsToInt(a*a/7.)^floatBitsToInt(a+.1);
+    //int y = floatBitsToInt(b*b/7.)^floatBitsToInt(b+.1);
+    //return float((x*x+y)*(y*y-x)-x)/2.14e9;
 }
 
 float rnd1,rnd2,rnd3;
@@ -329,7 +340,7 @@ float blades(vec2 p) {
     rnd2 =fract(sin(id*999.)*1e4);
     rnd3 =fract(sin(id*555.)*1e3);
     p.x += pow(p.y,2.)*(pow(rnd2,3.)*sign(rnd1-.5))*2.;
-    return box(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.007;
+    return box(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.005;
 }
 vec2 blades_norm(vec2 p) {
     mat2 k = mat2(p,p)-mat2(0.0001);
@@ -346,7 +357,7 @@ vec3 pixel_color( vec2 uv )
     //init=xz(init,-.1);
     cam=xy(cam,.85);
     init=xy(init,.75);
-    init.y-=-1.;
+    // init.y-=-1.;
     //cam = vec3(1,0,0);
     //uv.x=-uv.x;
     //init = vec3(-10,uv*15.);
@@ -354,7 +365,7 @@ vec3 pixel_color( vec2 uv )
     vec3 p = init;
     bool hit = false;
     int i;
-    for (i=0; i < 150 && !hit; i++) {
+    for (i=0; i < 200 && !hit; i++) {
         float dist = scene(p);
         hit = dist*dist < 1e-7;
         p += dist*cam;
@@ -374,7 +385,7 @@ vec3 pixel_color( vec2 uv )
         float bbscale = .01;
         float dx = length(cam.xy)*tnear;
         float at = atan(cam.x,cam.y);
-        for (int pl = 0; pl < 150; pl++) {
+        for (int pl = 0; pl < 200; pl++) {
             int bbid = int(ceil(dx/bbscale)) + pl;
             float bbx = float(bbid)*bbscale;
             float off =  fract(sin(bbx*668.)*500.)*500.-250.;
@@ -389,7 +400,7 @@ vec3 pixel_color( vec2 uv )
                 //todo: better normal calc
                 //this is so hilariously silly idk why it works
                 vec2 bn = blades_norm(crds);
-                n = normalize(vec3(-cam.xy,bn.y+(rnd2*8.-4.)*crds.y)+(bn.x+rnd2*2.-1.)*vec3(cam.y,-cam.x,0));
+                n = normalize(vec3(-cam.xy,(fract(rnd2*1e4)*8.-4.)*crds.y)+(bn.x+rnd2*2.-1.)*vec3(cam.y,-cam.x,0));
                 atten *= crds.y/.25;
                 hit = true;
                 gnd = true;
@@ -407,15 +418,15 @@ vec3 pixel_color( vec2 uv )
     }
 
     //if (!hit) return vec3(.86,1.35,2.44);
-    float cloud = tex(cam*.1+cam.z)*.02;
-    if (!hit) return mix(vec3(.8,1.3,2.4),vec3(4.52,5.84,6.41),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.))*smoothstep(100.,400.,distance(p,init));
+    float cloud = tex(cam*.1+cam.z)*.015;
+    if (!hit) return mix(vec3(.8,1.3,2.4),vec3(4.52,5.84,6.41),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
     vec3 r = reflect(cam, n);
     vec3 h = normalize(cam-dir);
     float ao = smoothstep(-.1,.1,scene(p+n*.1))*smoothstep(-.5,.5,scene(p+n*.5))*smoothstep(-1.,1.,scene(p+n));
 
-    vec3 ground = vec3(.04,.05,.01);
-    vec3 sky = vec3(.04,.04,.045);
-    float fres=1.-abs(dot(cam,n))*.98;
+    // vec3 ground = vec3(.04,.05,.01);
+    // vec3 sky = vec3(.04,.04,.045);
+    // float fres=1.-abs(dot(cam,n))*.98;
 
     float sunnordt = max(0.,dot(dir,n));
     float sunnordtr = max(0.,-dot(dir,n));
@@ -425,10 +436,10 @@ vec3 pixel_color( vec2 uv )
     //float ggx = mix(.05/(0.99+cos(sunrefdt*2.92)),.1/(0.96 + cos(sunrefdt*2.7)),roug);
 
     
-    vec3 skydiff = mix(ground,sky,n.z*.5+.5)*sqrt(ao);
-    vec3 sundiff = sunnordt*vec3(5);
+    // vec3 skydiff = mix(ground,sky,n.z*.5+.5)*sqrt(ao);
+    // vec3 sundiff = sunnordt*vec3(5);
     
-    vec3 skyspec = mix(mix(vec3(0),ground,smoothstep(-1.1,-.7,n.z)),sky,smoothstep(-.6,.6,r.z))*sqrt(ao);
+    vec3 skyspec = mix(mix(vec3(0),vec3(.04,.05,.01),smoothstep(-1.1,-.7,n.z)),vec3(.04,.04,.045),smoothstep(-.6,.6,r.z))*sqrt(ao);
     vec3 sunspec = ggx*sqrt(sunnordt)*.3*vec3(2.2,1.8,1.5);//ggx approximation
     
     
@@ -448,20 +459,21 @@ vec3 pixel_color( vec2 uv )
     
     vec3 grasscol = rnd3<.5?vec3(.42,.55,.15):vec3(0.322,0.137,0.137);
     //this grass material has no physical basis
-    if (gnd) col = grasscol*mix(.01,(sunnordt*3.+sunnordtr*.5+ggx)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
+    if (gnd) col = grasscol*mix(.01,(sunnordt*4.+sunnordtr*.5+ggx*1.5)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
     return col;
 }
 
 void main() {
 	fragCol = vec4(0);
-	if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
+	// if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
 	vec2 uv = (gl_FragCoord.xy-RS*.5)/RS.y;
 	float sd = acos(-1);
 	for (int i = 0; i < SA; i++) {
 		sd = hash(sd, 2.6);
 		vec2 h2 = tan(vec2(hash(sd, 6.7), hash(sd, 3.6)));
-		vec2 uv2 = uv + h2/1080;
-		fragCol += vec4(pixel_color(uv2), 1);
+		vec2 uv2 = uv + h2/RS.y;
+        vec3 col = pixel_color(uv2);
+        if (!isnan(length(col))) fragCol += vec4(col, 1); //no idea where nans are coming from
 	}
 
 	fragCol /= fragCol.w*4.; 
