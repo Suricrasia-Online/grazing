@@ -48,16 +48,9 @@ on_timeout (gpointer user_data)
 	(void)user_data;
 	int status;
 	pid_t result = waitpid(-1, &status, WNOHANG);
-	// printf("checking..\n");
 	if (result != 0) {
-		GdkPixbuf* pxbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, false, 8, width, height);
-		guchar* pixels = gdk_pixbuf_get_pixels(pxbuf);
-		memcpy(pixels, data, width*height*3);
-		// GdkPixbuf* pxbuf = gdk_pixbuf_new_from_bytes((GBytes*)data, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width);
-		// GtkWidget* image = gtk_image_new_from_pixbuf(pxbuf);
+		GdkPixbuf* pxbuf = gdk_pixbuf_new_from_data(data, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
 		gtk_image_set_from_pixbuf(GTK_IMAGE(image), pxbuf);
-		// GtkWidget* image = gtk_image_new_from_file("/home/blackle/Pictures/3.png");
-		// printf("done!\n");
 		return G_SOURCE_REMOVE;
 	}
 
@@ -125,7 +118,7 @@ void _start() {
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
 		// assertOpenGLError("glFramebufferTexture2D");
-		glViewport(0,0,width, height);
+		glViewport(0, 0, width, height);
 
 		/*
 		 * Render something.
@@ -177,7 +170,7 @@ void _start() {
 			glFinish();
 		}
 
-		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		// glReadBuffer(GL_COLOR_ATTACHMENT0);
 		glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
 	}
 	else

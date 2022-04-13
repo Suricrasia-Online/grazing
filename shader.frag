@@ -483,8 +483,8 @@ vec3 pixel_color( vec2 uv )
 
 void main() {
 	fragCol = vec4(0);
-	if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
-	vec2 uv = (gl_FragCoord.xy-RS*.5)/RS.y;
+	// if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
+	vec2 uv = (gl_FragCoord.xy-RS*.5)/vec2(RS.y,-RS.y);
 	float sd = hash(uv.x,uv.y);
 	for (int i = 0; i < SA; i++) {
 		sd = hash(sd, 2.);
