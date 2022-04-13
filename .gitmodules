@@ -1,0 +1,3 @@
+[submodule "oneKpaq"]
+	path = oneKpaq
+	url = git@github.com:blackle/oneKpaq.git

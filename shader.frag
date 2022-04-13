@@ -1,5 +1,4 @@
 out vec4 fragCol;
-
 const vec2 apos = vec2(3.4,4.1);
 //beam origin (yz plane)
 const vec2 bpos = vec2(-1.8,11.5-.95);
@@ -24,7 +23,7 @@ float mx(vec4 p) {
 //todo: make tri less..... like this
 #define tri(p,r) (asin(sin((p)*r))/r)
 
-float hex(vec2 p, float rad) {
+float hex(vec2 p, vec3 rad) {
     vec3 p2 = vec3(.81,-.4,-.4)*p.y + vec3(0,-.71,.71)*p.x;
     return box(p2,vec3(rad));
 }
@@ -56,7 +55,7 @@ float walking_beam(vec3 p) {
     p.z -= .15;
     vec3 p2 = p;
     p2.y=abs(p2.y+2.3)-2.3;
-    float bearing = box(vec2(length(p2.yz),p2.x),vec2(0.1600,0.8000))-0.0200;
+    float bearing = box(vec2(length(p2.yz),p2.x),vec2(0.1600,0.7000))-0.0200;
     p2.z+=mx(-abs(p2.xy))*.4;
     bearing = min(bearing, box(p2,vec3(0.4000,0.7000,0.2000))-0.0200);
     //bearing = min(bearing, box(p+vec3(0,4.6,mx(-abs(p.xy))*.4),vec3(0.4000,0.7000,0.2000))-0.0200);
@@ -133,12 +132,12 @@ float legs(vec3 p) {
     p.x -= p.z*-.11;
     float leg = obj(p,vec3(0.3000,0.3600,9.2),
         0.02,0.02,p.y,1e4);
-    p2.y -= 0.1;
+    p2.y -= 0.2;
     p2.z -= 6.4;
     p2=yz(p2,.45);
     float otherleg = obj(p2,vec3(0.3000,0.3600,8.2),
         0.02,0.02,p2.z,1e4);
-    p3.z-=10.17;p3.y-=-1.8;
+    p3.z-=10.17;p3.y-=-1.7;
     float base = box(p3,vec3(0.8000,0.8000,0.06))-0.0100;
     //todo: bearing between beam and legs
     float oz = p3.z;
@@ -176,22 +175,32 @@ float fence(vec3 p) {
 float gearbox(vec3 p) {
     p.yz -= apos;
     //return box(p,vec3(1.4,3.,2.));
-    float b = corner(vec2(hex(p.yz,1.),abs(p.x)-.5))-0.1000;
+    float b = corner(vec2(hex(p.yz,vec3(1)),abs(p.x)-.5))-0.1000;
     b = smin(box(vec2(length(p.yz),p.x),vec2(0.4000,2.2)),b,0.6000);
     p.z -= -.83;
     float c = box(p,vec3(1.2, 1.6, 0.0800))-0.0500;
     p.y -= 1.;
     p.z -= .5;
-    p.x+=0.1000;
-    b = smin(b, corner(vec2(hex(p.yz,.5),abs(p.x)-.3))-0.1000, 0.2000);
+    p.x-=0.0500;
+    b = smin(b, corner(vec2(hex(p.yz,vec3(.5)),abs(p.x)-.3))-0.1000, 0.2000);
     b = smin(box(vec2(length(p.yz),p.x),vec2(0.2500,1.3))-0.0500,b,0.3000);
     b = smin(b,c,0.4000);
-    b = -smin(-b,abs(p.z),0.0200);
+    //b = -smin(-b,abs(p.z),0.0200);
     //p.z-=.6;
     //b = -smin(-b,abs(p.z),0.0200);
+    vec3 p2 = p,p3=p;
     p.y=abs(p.y)-.4;
     p.x = abs(p.x)-0.1300;
     b = -smin(-b,length(p.yx)-0.0500,0.0200);
+    p2.x-=.7;
+    p2=yz(p2,-.9);
+    p2.y-=1.;
+    b = min(b, corner(vec2(hex(p2.yz,vec3(.5-p2.y*.2,1.8,1.8))-.2,abs(p2.x)-.15))-0.0100);
+    p3.y-=1.0;
+    p3.z+=1.6;
+    p3.x+=.1;
+    b = min(b, corner(vec2(length(p3.yz)-.35+sin(atan(p3.y,p3.z)*20.)*.01,abs(p3.x)-.55))-0.05);
+    b = min(b, max(p3.z,length(abs(p3.xy)-vec2(.55,.3))-.1));
     return b;
 }
 //https://twitter.com/AmigaBeanbag/status/1510713873799786503
@@ -201,7 +210,7 @@ float tex(vec3 x) {
 
 float counterweights(vec3 p, float ang) {
     p.yz -= apos;
-    p.x = abs(p.x)-1.4;
+    p.x = abs(p.x)-1.2;
     p=yz(p,ang);
     float oy = p.y;
     float oz = p.z;
@@ -235,16 +244,16 @@ float equalizer(vec3 p) {
     p.z-=.5;
     p.y=-abs(p.y);
     float oz=p.z;
-    float eq = smin(obj(p,vec3(0.2500,3.7,.8),
-        0.02,0.02,-p.y-.5,1.7), bearing,0.0500);
+    float eq = smin(obj(p,vec3(0.2500,3.5,.8),
+        0.02,0.02,-p.y-.5,1.5), bearing,0.0500);
     p.z -= 2.8;
-    p.y += 1.8;
+    p.y += 1.7;
     float arm = obj(p.yxz,vec3(0.2500,.4,6.9),
         0.02,0.02,p.x,1e4);
     p.z -= 3.1;
     arm = min(arm,box(p,.4)-0.0100);
     arm = -smin(-arm,abs(p.z),0.0300);
-    return min(max((-.3-oz<0.?.08:.02)-eq,arm),eq);
+    return min(max((-.45-oz<0.?.08:.02)-eq,arm),eq);
 }
 
 
@@ -321,10 +330,11 @@ vec3 norm(vec3 p) {
 
 //todo: replace with smaller hashfunc
 float hash(float a, float b) {
-    return fract(sin(a*12.9898+b*78.233) * 43758.5453)*2.-1.;
-    //int x = floatBitsToInt(a*a/7.)^floatBitsToInt(a+.1);
-    //int y = floatBitsToInt(b*b/7.)^floatBitsToInt(b+.1);
-    //return float((x*x+y)*(y*y-x)-x)/2.14e9;
+    // return fract(100.*fract(sin(a) * 1e4) + fract(sin(b) * 1e4))*2.-1.;
+    // return fract(sin(a*12.9898+b*4.1414) * 43758.5453)*2.-1.;
+    int x = floatBitsToInt(a/7.);//^floatBitsToInt(a+.1);
+    int y = floatBitsToInt(b/7.);//^floatBitsToInt(b+.1);
+    return float((x*x+y)*(y*y-x)-x)/2.14e9;
 }
 
 float rnd1,rnd2,rnd3;
@@ -353,7 +363,7 @@ vec3 pixel_color( vec2 uv )
     //uv-=vec2(-.0,.5);
     vec3 cam = normalize(vec3(1.2,uv));
     vec3 init = vec3(-30,0,1.7);
-    cam=xz(cam,-.15);
+    cam=xz(cam,-.17);
     //init=xz(init,-.1);
     cam=xy(cam,.85);
     init=xy(init,.75);
@@ -365,7 +375,7 @@ vec3 pixel_color( vec2 uv )
     vec3 p = init;
     bool hit = false;
     int i;
-    for (i=0; i < 200 && !hit; i++) {
+    for (i=0; i < 150 && !hit; i++) {
         float dist = scene(p);
         hit = dist*dist < 1e-7;
         p += dist*cam;
@@ -385,7 +395,7 @@ vec3 pixel_color( vec2 uv )
         float bbscale = .01;
         float dx = length(cam.xy)*tnear;
         float at = atan(cam.x,cam.y);
-        for (int pl = 0; pl < 200; pl++) {
+        for (int pl = 0; pl < 150; pl++) {
             int bbid = int(ceil(dx/bbscale)) + pl;
             float bbx = float(bbid)*bbscale;
             float off =  fract(sin(bbx*668.)*500.)*500.-250.;
@@ -419,7 +429,7 @@ vec3 pixel_color( vec2 uv )
 
     //if (!hit) return vec3(.86,1.35,2.44);
     float cloud = tex(cam*.1+cam.z)*.015;
-    if (!hit) return mix(vec3(.8,1.3,2.4),vec3(4.52,5.84,6.41),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
+    if (!hit) return mix(vec3(.4,1.5,2.8),vec3(4.3,5.9,6.6),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
     vec3 r = reflect(cam, n);
     vec3 h = normalize(cam-dir);
     float ao = smoothstep(-.1,.1,scene(p+n*.1))*smoothstep(-.5,.5,scene(p+n*.5))*smoothstep(-1.,1.,scene(p+n));
@@ -439,7 +449,7 @@ vec3 pixel_color( vec2 uv )
     // vec3 skydiff = mix(ground,sky,n.z*.5+.5)*sqrt(ao);
     // vec3 sundiff = sunnordt*vec3(5);
     
-    vec3 skyspec = mix(mix(vec3(0),vec3(.04,.05,.01),smoothstep(-1.1,-.7,n.z)),vec3(.04,.04,.045),smoothstep(-.6,.6,r.z))*sqrt(ao);
+    vec3 skyspec = mix(mix(vec3(0),vec3(.05,.05,.01),smoothstep(-1.1,-.7,n.z)),vec3(.04,.045,.045),smoothstep(-.6,.6,r.z))*sqrt(ao);
     vec3 sunspec = ggx*sqrt(sunnordt)*.3*vec3(2.2,1.8,1.5);//ggx approximation
     
     
@@ -457,27 +467,35 @@ vec3 pixel_color( vec2 uv )
     minn = pow(max(minn,0.),.1);
     vec3 col = (sunspec*minn+skyspec);
     
-    vec3 grasscol = rnd3<.5?vec3(.42,.55,.15):vec3(0.322,0.137,0.137);
+    vec3 grasscol = rnd3<.5?vec3(.52,.57,.1):vec3(0.322,0.137,0.137);
     //this grass material has no physical basis
-    if (gnd) col = grasscol*mix(.01,(sunnordt*4.+sunnordtr*.5+ggx*1.5)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
+    if (gnd) col = grasscol*mix(.01,(sunnordt*5.+sunnordtr*.5+ggx*1.5)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
     return col;
 }
 
+// bool logo(vec2 uv) {
+//     float id = round(uv.y * 10.5);
+//     vec2 uv2 = vec2(uv.x, id / 10.5);
+//     if (length(uv2*vec2(1.0,0.8) + vec2(0.75, 0.0)) < 1. && length(uv2) < .9) return mod(id,2.) > .5;
+//     if (length(uv)<1.&&uv.x<0.)return true;
+//     return abs(length(uv) - 1.) < 0.07;
+// }
+
 void main() {
 	fragCol = vec4(0);
-	// if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
+	if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
 	vec2 uv = (gl_FragCoord.xy-RS*.5)/RS.y;
-	float sd = acos(-1);
+	float sd = hash(uv.x,uv.y);
 	for (int i = 0; i < SA; i++) {
-		sd = hash(sd, 2.6);
-		vec2 h2 = tan(vec2(hash(sd, 6.7), hash(sd, 3.6)));
-		vec2 uv2 = uv + h2/RS.y;
-        vec3 col = pixel_color(uv2);
+		sd = hash(sd, 2.);
+		vec2 hs = tan(vec2(hash(sd, 9.), hash(sd, 5.)))/RS.y;
+        vec3 col = pixel_color(uv + hs);
+        // if (logo((uv+hs*.5+RS*.5/RS.y-.05)*40.)) col=vec3(1);
         if (!isnan(length(col))) fragCol += vec4(col, 1); //no idea where nans are coming from
 	}
 
-	fragCol /= fragCol.w*4.; 
-	fragCol *= 1.0 - dot(uv,uv)*0.5; //vingetting lol
-	fragCol = smoothstep(-0.2,1.2,sqrt(fragCol)); //colour grading
-    fragCol += hash(uv.x,uv.y)*.015; //"film grain"
+	fragCol = smoothstep(-0.2,1.2,sqrt(
+        fragCol/fragCol.w/4.*(1.0 - dot(uv,uv)*0.5))
+    ) + sd*.015; //vignette/grade/"film grain"
+    // fragCol.xyz*=mat3(1.7,-.2,-.4,-.3,1.4,-.1,-.1,-.1,1.2);
 }

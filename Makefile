@@ -50,7 +50,7 @@ LDFLAGS = -lc -lGL -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3
 
 .PHONY: clean check_size
 
-all : $(PROJNAME) check_size
+all : $(PROJNAME) $(PROJNAME)_unpacked check_size
 
 $(PROJNAME).zip : $(PROJNAME) $(PROJNAME)_unpacked README.txt screenshot.jpg
 	-rm $@
