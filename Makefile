@@ -44,9 +44,9 @@ CFLAGS += -Wextra
 CFLAGS += -no-pie
 
 CFLAGS += -nostartfiles -nodefaultlibs
-CFLAGS += `pkg-config --cflags gtk+-3.0`
+CFLAGS += `pkg-config --cflags gtk+-3.0 cogl-1.0`
 
-LDFLAGS = -lc -lGL -lEGL -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3 -lgdk_pixbuf-2.0
+LDFLAGS = -lc -lGL -lcogl -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3 -lgdk_pixbuf-2.0
 
 .PHONY: clean check_size
 
@@ -66,7 +66,7 @@ $(PROJNAME).o : $(PROJNAME).c shader.h Makefile
 	gcc -c -o $@ $< $(CFLAGS)
 
 $(PROJNAME).elf.smol : $(PROJNAME).o
-	python3 ./smol/smold.py --smolrt "$(PWD)/smol/rt" --smolld "$(PWD)/smol/ld" --det -fuse-interp -fno-align-stack -fuse-dlfixup-loader --crc32c --debugout $(PROJNAME).elf.smol.dbg --ldflags=-Wl,-Map=$(PROJNAME).elf.smol.map $(LDFLAGS) $< $@
+	python3 ./smol/smold.py --smolrt "$(PWD)/smol/rt" --smolld "$(PWD)/smol/ld" --det -fuse-interp -fno-align-stack -fuse-dnload-loader --crc32c --debugout $(PROJNAME).elf.smol.dbg --ldflags=-Wl,-Map=$(PROJNAME).elf.smol.map $(LDFLAGS) $< $@
 
 $(PROJNAME)_unpacked : $(PROJNAME).c shader.h Makefile
 	gcc -o $@ $< $(CFLAGS) $(LDFLAGS)
