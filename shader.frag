@@ -343,23 +343,23 @@ float hash(float a, float b) {
 }
 
 float rnd1,rnd2,rnd3;
-float blades(vec2 p) {
-    p.x -= (floor(p.x/40.)+.5)*40.;
-    float id = pow(floor(sqrt(abs(p.x*40.))),2.);
-    id = sign(p.x)*(id+sqrt(id))/40.;
-    //float id = (floor(p.x*2.)+.5)/2.;
+float blades(vec2 p,float o) {
+    // p.x -= (floor(p.x/40.)+.5)*40.;
+    // float id = pow(floor(sqrt(abs(p.x*40.))),2.);
+    // id = sign(p.x)*(id+sqrt(id))/40.;
+    float id = (floor(p.x*1.8)+.5)/1.8;
     p.x -= id;
     //p.x = sgn*(p.x*4.-sign(p.x)*(id+sqrt(id)))/4.;
 
-    rnd1 =fract(sin(id*777.)*1e5);
-    rnd2 =fract(sin(id*999.)*1e4);
-    rnd3 =fract(sin(id*555.)*1e3);
+    rnd1 =fract(sin(id*777.+o)*1e5);
+    rnd2 =fract(sin(id*999.+o)*1e4);
+    rnd3 =fract(sin(id*555.+o)*1e3);
     p.x += pow(p.y,2.)*(pow(rnd2,3.)*sign(rnd1-.5))*2.;
     return bx(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.005;
 }
-vec2 blades_norm(vec2 p) {
+vec2 blades_norm(vec2 p,float o) {
     mat2 k = mat2(p,p)-mat2(0.0001);
-    return normalize(blades(p) - vec2(blades(k[0]), blades(k[1])));
+    return normalize(blades(p,o) - vec2(blades(k[0],o), blades(k[1],o)));
 }
 
 vec3 pixel_color( vec2 uv )
@@ -368,7 +368,7 @@ vec3 pixel_color( vec2 uv )
     //uv-=vec2(-.0,.5);
     vec3 cam = normalize(vec3(1.1,uv));
     vec3 init = vec3(-25,0,1.7);
-    cam=xz(cam,-.18);
+    cam=xz(cam,-.19);
     //init=xz(init,-.1);
     cam=xy(cam,.81);
     init=xy(init,.73);
@@ -409,12 +409,12 @@ vec3 pixel_color( vec2 uv )
             //t += tt;
             vec3 p2 = init+cam*(tnear+tt);
             //blheight = cos(p2.x*.5)*cos(p2.y*.5)*.5+.5;
-            if (blades(crds)>tnear*.0001) continue;
+            if (blades(crds,off)>tnear*.0001) continue;
             if ((tnear+tt) < length(p-init) || !hit) {
                 p = p2;
                 //todo: better normal calc
                 //this is so hilariously silly idk why it works
-                vec2 bn = blades_norm(crds);
+                vec2 bn = blades_norm(crds,off);
                 n = normalize(vec3(-cam.xy,(fract(rnd2*1e4)*8.-4.)*crds.y)+(bn.x+rnd2*2.-1.)*vec3(cam.y,-cam.x,0));
                 atten *= crds.y/.25;
                 hit = true;
