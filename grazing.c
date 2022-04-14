@@ -1,6 +1,14 @@
 #define GL_GLEXT_PROTOTYPES
-#define COGL_ENABLE_EXPERIMENTAL_API
-#include <cogl/cogl.h>
+#define COGL_COMPILATION 1
+// #define COGL_ENABLE_EXPERIMENTAL_API
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#include "config.h"
+#include <cogl/cogl-context.h>
+#include <cogl/deprecated/cogl-framebuffer-deprecated.h>
+#include <cogl/cogl-context-private.h>
+#pragma GCC diagnostic pop
+
 
 #include<stdio.h>
 #include<stdbool.h>
@@ -93,54 +101,23 @@ void _start() {
 	if (pid == 0) {
 		prctl(PR_SET_PDEATHSIG, SIGHUP);
 
-		// EGLDisplay display;
-		// EGLConfig config;
-		// EGLContext context;
-		// EGLint num_config;
-
-		// display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-		// // assertEGLError("eglGetDisplay");
-		
-		// eglInitialize(display, NULL, NULL);
-		// // assertEGLError("eglInitialize");
-
-		// eglChooseConfig(display, NULL, &config, 1, &num_config);
-		// // assertEGLError("eglChooseConfig");
-		
-		// eglBindAPI(EGL_OPENGL_API);
-		// // assertEGLError("eglBindAPI");
-		
-		// context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
-		// // assertEGLError("eglCreateContext");
-		
-		// eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
-		// assertEGLError("eglMakeCurrent");
-
 		//extremely nasty
 		CoglError* error = NULL;
 		CoglContext* context = cogl_context_new(NULL, &error);
 		(void)context;
 
 		GLuint frameBuffer;
-		glGenFramebuffers(1, &frameBuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-		// assertOpenGLError("glBindFramebuffer");
+		context->glGenFramebuffers(1, &frameBuffer);
+		context->glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 
 		GLuint t;
-		glGenTextures(1, &t);
+		context->glGenTextures(1, &t);
 
-		glBindTexture(GL_TEXTURE_2D, t);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-		// assertOpenGLError("glTexImage2D");
-		
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		context->glBindTexture(GL_TEXTURE_2D, t);
+		context->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
-		// assertOpenGLError("glFramebufferTexture2D");
-		glViewport(0, 0, width, height);
+		context->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
+		context->glViewport(0, 0, width, height);
 
 		char* samples = getenv("SAMPLES");
 		if (samples == NULL) samples = "150";
@@ -150,43 +127,82 @@ void _start() {
 
 		//todo: amdgpu doesn't like this at all
 		// const char* shader_frag_list[] = {buffer, shader_frag};
-		GLuint f = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &mybuf);
-		GLuint v = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vshader);
+	// 	GLuint f = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &mybuf);
+	// 	GLuint v = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vshader);
 
-		GLuint p;
-		glGenProgramPipelines(1, &p);
-		glUseProgramStages(p, GL_VERTEX_SHADER_BIT, v);
-		glUseProgramStages(p, GL_FRAGMENT_SHADER_BIT, f);
-		glBindProgramPipeline(p);
+	// 	GLuint p;
+	// 	glGenProgramPipelines(1, &p);
+	// 	glUseProgramStages(p, GL_VERTEX_SHADER_BIT, v);
+	// 	glUseProgramStages(p, GL_FRAGMENT_SHADER_BIT, f);
+	// 	glBindProgramPipeline(p);
 
-	#if defined(DEBUG_FRAG) || defined(DEBUG_VERT)
-		// char charbuf[CHAR_BUFFER_SIZE];
-		if ((p = glGetError()) != GL_NO_ERROR) { //use p to hold the error, lmao
-	#ifdef DEBUG_FRAG
-			glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, buffer);
+	// #if defined(DEBUG_FRAG) || defined(DEBUG_VERT)
+	// 	// char charbuf[CHAR_BUFFER_SIZE];
+	// 	if ((p = glGetError()) != GL_NO_ERROR) { //use p to hold the error, lmao
+	// #ifdef DEBUG_FRAG
+	// 		glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, buffer);
+	// 		printf(buffer);
+	// #endif
+	// #ifdef DEBUG_VERT
+	// 		glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, buffer);
+	// 		printf(buffer);
+	// #endif
+	// 		goto quit_asm;
+	// 		// SYS_exit_group(p);
+	// 		__builtin_unreachable();
+	// 	}
+	// #endif
+	// 	GE_RET(vert, context, glCreateShader(GL_VERTEX_SHADER));
+		GLint compile_status = 0;
+
+		GLuint vert = context->glCreateShader(GL_VERTEX_SHADER);
+		context->glShaderSource(vert, 1, &vshader, NULL);
+		context->glCompileShader(vert);
+#ifdef DEBUG_VERT
+		context->glGetShaderiv(vert, GL_COMPILE_STATUS, &compile_status);
+		if(compile_status == GL_FALSE) {
+			context->glGetShaderInfoLog(vert, CHAR_BUFFER_SIZE, NULL, buffer);
 			printf(buffer);
-	#endif
-	#ifdef DEBUG_VERT
-			glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, buffer);
-			printf(buffer);
-	#endif
+
 			goto quit_asm;
-			// SYS_exit_group(p);
-			__builtin_unreachable();
 		}
-	#endif
+#endif
+
+		GLuint frag = context->glCreateShader(GL_FRAGMENT_SHADER);
+		context->glShaderSource(frag, 1, &mybuf, NULL);
+		context->glCompileShader(frag);
+#ifdef DEBUG_FRAG
+		context->glGetShaderiv(frag, GL_COMPILE_STATUS, &compile_status);
+		if(compile_status == GL_FALSE) {
+			context->glGetShaderInfoLog(frag, CHAR_BUFFER_SIZE, NULL, buffer);
+			printf(buffer);
+
+			goto quit_asm;
+		}
+#endif
+
+		GLuint p = context->glCreateProgram();
+		context->glAttachShader(p, vert);
+		context->glAttachShader(p, frag);
+		context->glLinkProgram(p);
+		// context->glGetProgramiv(p, GL_LINK_STATUS, &compile_status);
+		// printf("%d\n", compile_status);
+		context->glUseProgram(p);
+		// context->glVertexAttrib1f(0, 0);
+		// context->glUniform1i(0, 0);
+
 
 		GLuint vao;
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
+		context->glGenVertexArrays(1, &vao);
+		context->glBindVertexArray(vao);
 
 	  for (int i = 0; i < 40; i += 2) {
-			glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
-			glFinish();
+			context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
+			context->glFinish();
 		}
 
 		// glReadBuffer(GL_COLOR_ATTACHMENT0);
-		glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data+1);
+		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data+1);
 		*data=1;
 	}
 	else
