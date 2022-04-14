@@ -44,7 +44,7 @@ CFLAGS += -Wextra
 CFLAGS += -no-pie
 
 CFLAGS += -nostartfiles -nodefaultlibs
-CFLAGS += `pkg-config --cflags gtk+-3.0` -I/home/blackle/Downloads/cogl -I/home/blackle/Downloads/cogl/cogl -I/home/blackle/Downloads/cogl/cogl/winsys
+CFLAGS += `pkg-config --cflags gtk+-3.0` -I./cogl -I./cogl/cogl -I./cogl/cogl/winsys
 
 LDFLAGS = -lc -lcogl -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3 -lgdk_pixbuf-2.0
 
@@ -62,7 +62,10 @@ oneKpaq/onekpaq :
 shader.h : shader.frag Makefile
 	mono ./shader_minifier.exe --no-renaming-list main,mx shader.frag -o shader.h
 
-$(PROJNAME).o : $(PROJNAME).c shader.h Makefile
+cogl/config.h : cogl/autogen.sh
+	cd cogl; bash autogen.sh; make -j8
+
+$(PROJNAME).o : $(PROJNAME).c shader.h Makefile cogl/config.h
 	gcc -c -o $@ $< $(CFLAGS)
 
 $(PROJNAME).elf.smol : $(PROJNAME).o

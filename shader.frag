@@ -18,14 +18,14 @@ float mx(vec3 p) {
 float mx(vec4 p) {
     return max(p.x,mx(p.yzw));
 }
-#define corner(p) (length(max(p,0.)) + min(0.,mx(p)))
-#define box(p,d) corner(abs(p)-(d/2.))
-//todo: make tri less..... like this
-#define tri(p,r) (asin(sin((p)*r))/r)
+#define cn(p) (length(max(p,0.)) + min(0.,mx(p)))
+#define bx(p,d) cn(abs(p)-(d/2.))
+//todo: make tr less..... like this
+#define tr(p,r) (asin(sin((p)*r))/r)
 
 float hex(vec2 p, vec3 rad) {
     vec3 p2 = vec3(.81,-.4,-.4)*p.y + vec3(0,-.71,.71)*p.x;
-    return box(p2,vec3(rad));
+    return bx(p2,vec3(rad));
 }
 float smin(float a, float b, float k) {
     float h = max(0.,k-abs(a-b))/k;
@@ -33,9 +33,9 @@ float smin(float a, float b, float k) {
 }
 
 float feature(vec3 p, float d, float w, float t) {
-    float body = corner(p.xy-vec2(-t,d)/2.); // main body or nothing
-    float perp = box(p.xy,vec2(t,w)); // perpendicular beam
-    float supp = corner(vec3(p.x,abs(p.yz))-vec3(-t,mix(w,d,.3),t)/2.); // supporting beam
+    float body = cn(p.xy-vec2(-t,d)/2.); // main body or nothing
+    float perp = bx(p.xy,vec2(t,w)); // perpendicular beam
+    float supp = cn(vec3(p.x,abs(p.yz))-vec3(-t,mix(w,d,.3),t)/2.); // supporting beam
     return smin(min(supp,body),perp,t/2.)-0.0100;
 }
 
@@ -45,7 +45,7 @@ float feature(vec3 p, float d, float w, float t) {
 //y = greeble dimension
 //o = 45deg cut offset
 float obj(vec3 p, vec3 d, float dp, float t, float y, float o) {
-    float body = -smin(-box(p.yz,d.yz),(o+p.y-p.z)*.71,0.0500);
+    float body = -smin(-bx(p.yz,d.yz),(o+p.y-p.z)*.71,0.0500);
     return feature(vec3(body,abs(p.x),y),dp,d.x,t);
 }
 
@@ -55,10 +55,10 @@ float walking_beam(vec3 p) {
     p.z -= .15;
     vec3 p2 = p;
     p2.y=abs(p2.y+2.3)-2.3;
-    float bearing = box(vec2(length(p2.yz),p2.x),vec2(0.1600,0.7000))-0.0200;
+    float bearing = bx(vec2(length(p2.yz),p2.x),vec2(0.1600,0.7000))-0.0200;
     p2.z+=mx(-abs(p2.xy))*.4;
-    bearing = min(bearing, box(p2,vec3(0.4000,0.7000,0.2000))-0.0200);
-    //bearing = min(bearing, box(p+vec3(0,4.6,mx(-abs(p.xy))*.4),vec3(0.4000,0.7000,0.2000))-0.0200);
+    bearing = min(bearing, bx(p2,vec3(0.4000,0.7000,0.2000))-0.0200);
+    //bearing = min(bearing, bx(p+vec3(0,4.6,mx(-abs(p.xy))*.4),vec3(0.4000,0.7000,0.2000))-0.0200);
     bearing=-smin(abs(p.x)-0.1000,-bearing,0.0100);
     
     p.z -= .80;
@@ -68,11 +68,11 @@ float walking_beam(vec3 p) {
     p.y -= 4.5;
     float headsh = -smin(-abs(p.z+1.+p.y*.2)+3.,-max(d-6., -p.y),0.1000); //todo: make head better with better greebles
     //feature(vec3(head,abs(abs(p.x)-0.3600),0.),0.1000,0.02,0.02);
-    float head=corner(vec2(headsh,abs(abs(p.x)-0.3600)))-0.02;
-    head=min(head,corner(vec3(abs(headsh+0.0500),abs(p.x)-0.4200,-tri(p.z-0.5000,2.8))))-0.02;
+    float head=cn(vec2(headsh,abs(abs(p.x)-0.3600)))-0.02;
+    head=min(head,cn(vec3(abs(headsh+0.0500),abs(p.x)-0.4200,-tr(p.z-0.5000,2.8))))-0.02;
     p.y -= .4;
     p.z = abs(p.z)-.4;
-    head=min(head,box(vec2(length(p.yz),p.x),vec2(0.0800,1.0000))-0.0100);
+    head=min(head,bx(vec2(length(p.yz),p.x),vec2(0.0800,1.0000))-0.0100);
     p.z-=3.2;p.y-=0.0500;
     head=-smin(-head,length(p.yz)-0.1000,0.0200);
     return min(min(bearing, beam),head);
@@ -81,7 +81,7 @@ float walking_beam(vec3 p) {
 
 // float ladder(vec3 p) {
 //     return obj(p,vec3(0.0700,10.5,.4),
-//         -0.0800,0.02,tri(p.y,10.),1e4);
+//         -0.0800,0.02,tr(p.y,10.),1e4);
 // }
 
 float ladder_all(vec3 p) {
@@ -89,13 +89,13 @@ float ladder_all(vec3 p) {
     p-=vec3(0,0.3000,2.);
     p=vec3(length(p.xy)-0.3500,atan(p.x,p.y)/3.2,p.z);
     return min(obj(p2,vec3(0.0700,10.5,.4),
-        -0.0800,0.02,tri(p2.y,10.),1e4),
+        -0.0800,0.02,tr(p2.y,10.),1e4),
         obj(p,vec3(0.0700,1.5,8.),
-        -0.1700,0.02,min(abs(tri(p.y,10.)),abs(tri(p.z,3.))),1e4));
+        -0.1700,0.02,min(abs(tr(p.y,10.)),abs(tr(p.z,3.))),1e4));
     // return obj(p2,vec3(0.0700,10.5,.4),
-    //     -0.0800,0.02,tri(p2.y,10.),1e4);
+    //     -0.0800,0.02,tr(p2.y,10.),1e4);
     // return obj(p,vec3(0.0700,1.5,8.),
-    //     -0.1700,0.02,min(abs(tri(p.y,10.)),abs(tri(p.z,3.))),1e4);
+    //     -0.1700,0.02,min(abs(tr(p.y,10.)),abs(tr(p.z,3.))),1e4);
 }
 
 // float ladder_all(vec3 p) {
@@ -108,7 +108,7 @@ float chonker(vec3 p) {
     p.y-=2.7;
     p.z-=2.02;
     return obj(p,vec3(1.5,3.,2.3),
-        1.3,0.02,abs(tri(p.y,4.3))-0.1400,1.6);
+        1.3,0.02,abs(tr(p.y,4.3))-0.1400,1.6);
 }
 
 float base(vec3 p) {
@@ -138,12 +138,12 @@ float legs(vec3 p) {
     float otherleg = obj(p2,vec3(0.3000,0.3600,8.2),
         0.02,0.02,p2.z,1e4);
     p3.z-=10.17;p3.y-=-1.7;
-    float base = box(p3,vec3(0.8000,0.8000,0.06))-0.0100;
+    float base = bx(p3,vec3(0.8000,0.8000,0.06))-0.0100;
     //todo: bearing between beam and legs
     float oz = p3.z;
     p3=yz(p3,.78);
     p3.z-=0.1000;p3.x=abs(abs(p3.x)-0.1500)-0.1500;
-    float bearing=max(-oz,box(p3,vec3(0.1000,0.6000,0.6000)))-0.0100;
+    float bearing=max(-oz,bx(p3,vec3(0.1000,0.6000,0.6000)))-0.0100;
     return min(min(min(base,bearing),otherleg),leg);
 }
 
@@ -155,35 +155,35 @@ float legs(vec3 p) {
 //     p.z -= 1.8;
 //     p.y=-abs(p.y);
 //     p.yz-=min(dot(p.yz,vec2(-.4,.85))*2.,0.)*vec2(-.4,.85);
-//     float b = box(p,vec3(0.2000,2.3,0.02));
+//     float b = bx(p,vec3(0.2000,2.3,0.02));
 //     p.z-=0.0500;p.y=abs(p.y)-0.7000;p.y=abs(p.y)-0.2000;p.x+=0.4000;
-//     b = min(b, box(p,vec3(1.,0.2000,0.02)) );
+//     b = min(b, bx(p,vec3(1.,0.2000,0.02)) );
 //     //p.x-=0.4000;
 //     //vec2 crds = vec2(length(p.xy),p.z+0.0200);
-//     //b = min(b, box(crds,vec2(0.0200,0.1200)) );
+//     //b = min(b, bx(crds,vec2(0.0200,0.1200)) );
 //     return b-0.0100;
 //     //return min(b-0.0100,k);
 // }
 float fence(vec3 p) {
     float oy = p.y;
     p.z -= 1.1; p.y -= 2.;p.xy=abs(p.xy);p.z*=-1.;
-    vec3 crds = vec3(box(p.xy,vec2(4.4,10.)),atan(p.x,p.y)*4.3,p.z);
-    float rep =-mx(-abs(tri(p,vec3(2.1,2.53,8.))));
+    vec3 crds = vec3(bx(p.xy,vec2(4.4,10.)),atan(p.x,p.y)*4.3,p.z);
+    float rep =-mx(-abs(tr(p,vec3(2.1,2.53,8.))));
     return obj(crds, vec3(0.0500, 50., 2.3), -0.1500, 0.02, rep,oy*.2);
 }
 
-float gearbox(vec3 p) {
+float gearbx(vec3 p) {
     p.yz -= apos;
-    //return box(p,vec3(1.4,3.,2.));
-    float b = corner(vec2(hex(p.yz,vec3(1)),abs(p.x)-.5))-0.1000;
-    b = smin(box(vec2(length(p.yz),p.x),vec2(0.4000,2.2)),b,0.6000);
+    //return bx(p,vec3(1.4,3.,2.));
+    float b = cn(vec2(hex(p.yz,vec3(1)),abs(p.x)-.5))-0.1000;
+    b = smin(bx(vec2(length(p.yz),p.x),vec2(0.4000,2.2)),b,0.6000);
     p.z -= -.83;
-    float c = box(p,vec3(1.2, 1.6, 0.0800))-0.0500;
+    float c = bx(p,vec3(1.2, 1.6, 0.0800))-0.0500;
     p.y -= 1.;
     p.z -= .5;
     p.x-=0.0500;
-    b = smin(b, corner(vec2(hex(p.yz,vec3(.5)),abs(p.x)-.3))-0.1000, 0.2000);
-    b = smin(box(vec2(length(p.yz),p.x),vec2(0.2500,1.3))-0.0500,b,0.3000);
+    b = smin(b, cn(vec2(hex(p.yz,vec3(.5)),abs(p.x)-.3))-0.1000, 0.2000);
+    b = smin(bx(vec2(length(p.yz),p.x),vec2(0.2500,1.3))-0.0500,b,0.3000);
     b = smin(b,c,0.4000);
     //b = -smin(-b,abs(p.z),0.0200);
     //p.z-=.6;
@@ -195,11 +195,11 @@ float gearbox(vec3 p) {
     p2.x-=.7;
     p2=yz(p2,-.9);
     p2.y-=1.;
-    b = min(b, corner(vec2(hex(p2.yz,vec3(.5-p2.y*.2,1.8,1.8))-.2,abs(p2.x)-.15))-0.0100);
+    b = min(b, cn(vec2(hex(p2.yz,vec3(.5-p2.y*.2,1.8,1.8))-.2,abs(p2.x)-.15))-0.0100);
     p3.y-=1.0;
     p3.z+=1.6;
     p3.x+=.1;
-    b = min(b, corner(vec2(length(p3.yz)-.35+sin(atan(p3.y,p3.z)*20.)*.01,abs(p3.x)-.55))-0.05);
+    b = min(b, cn(vec2(length(p3.yz)-.35+sin(atan(p3.y,p3.z)*20.)*.01,abs(p3.x)-.55))-0.05);
     b = min(b, max(p3.z,length(abs(p3.xy)-vec2(.55,.3))-.1));
     return b;
 }
@@ -218,16 +218,16 @@ float counterweights(vec3 p, float ang) {
     float l = length(p.yz);
     float cw = -smin(-2.-p.y, -(l-3.5), 0.4000);
     cw = -smin(-cw,-abs(p.z-1.3)+.84, 0.4000);
-    cw = corner(vec2(cw, abs(p.x)-0.1500))-0.0400;
+    cw = cn(vec2(cw, abs(p.x)-0.1500))-0.0400;
     vec3 p3 = p;
-    p3.yz = tri(p3.yz,3.95);
+    p3.yz = tr(p3.yz,3.95);
     cw = -smin(length(p3.yz)-0.1000,-cw,0.0100);
     vec3 p2 = p;
     p2.y = abs(p.y+1.)-1.;
-    float b2 = box(vec2(length(p2.yz)-0.3500,p.x-0.0500),vec2(0.2200,.45))-0.0200;
-    b2 = min(b2,box(vec2(length(p2.yz),p.x),vec2(0.2900,.5))-0.0200);
+    float b2 = bx(vec2(length(p2.yz)-0.3500,p.x-0.0500),vec2(0.2200,.45))-0.0200;
+    b2 = min(b2,bx(vec2(length(p2.yz),p.x),vec2(0.2900,.5))-0.0200);
     p.y+=1.6;
-    float b = obj(p, vec3(0.3000, 4., .7), 0.3000-0.06, 0.1000,  tri(p.y, 2.), 2.1);
+    float b = obj(p, vec3(0.3000, 4., .7), 0.3000-0.06, 0.1000,  tr(p.y, 2.), 2.1);
     p.z = oz-.8;
     p.y-=.7;
     b = -smin(length(p.yz)-0.5500, -b, 0.0600);
@@ -240,7 +240,7 @@ float counterweights(vec3 p, float ang) {
 
 float equalizer(vec3 p) {
     p.yx=p.xy;
-    float bearing=box(vec2(length(p.xz),p.y),vec2(0.6000,0.0900))-0.0200;
+    float bearing=bx(vec2(length(p.xz),p.y),vec2(0.6000,0.0900))-0.0200;
     p.z-=.5;
     p.y=-abs(p.y);
     float oz=p.z;
@@ -251,7 +251,7 @@ float equalizer(vec3 p) {
     float arm = obj(p.yxz,vec3(0.2500,.4,6.9),
         0.02,0.02,p.x,1e4);
     p.z -= 3.1;
-    arm = min(arm,box(p,.4)-0.0100);
+    arm = min(arm,bx(p,.4)-0.0100);
     arm = -smin(-arm,abs(p.z),0.0300);
     return min(max((-.45-oz<0.?.08:.02)-eq,arm),eq);
 }
@@ -261,11 +261,11 @@ float wireline(vec3 p, float bz) {
     p -= vec3(0,-7.8,10.5);
     float carrierz = -16.+bz;
     float polish = max(length(p.xy)-0.0300,-0.5000-carrierz+p.z);
-    float carrier = box(vec2(length(p.xy),p.z-carrierz),vec2(0.3000,0.2000));
+    float carrier = bx(vec2(length(p.xy),p.z-carrierz),vec2(0.3000,0.2000));
     p.x = abs(p.x)-0.2700;
     float bridle = max(length(p.xy)-0.0300,max(p.z,carrierz-p.z));
     p.z=abs(p.z-carrierz-0.1000)-0.1000;
-    carrier=smin(carrier, box(vec2(length(p.xy),p.z),vec2(0.2000,0.1000)),0.2000);
+    carrier=smin(carrier, bx(vec2(length(p.xy),p.z),vec2(0.2000,0.1000)),0.2000);
     return min(carrier-0.0100,min(bridle,polish));
 }
 
@@ -306,7 +306,7 @@ float scene(vec3 p) {
     pumpjack=min(pumpjack,legs(p));
     // pumpjack=min(pumpjack,back_bench(p));
     pumpjack=min(pumpjack,fence(p));
-    pumpjack=min(pumpjack,gearbox(p));
+    pumpjack=min(pumpjack,gearbx(p));
     vec3 epos = p-vec3(0.,bearing);
     epos = yz(epos,ang3);
     pumpjack=min(pumpjack,counterweights(p, ang));
@@ -350,7 +350,7 @@ float blades(vec2 p) {
     rnd2 =fract(sin(id*999.)*1e4);
     rnd3 =fract(sin(id*555.)*1e3);
     p.x += pow(p.y,2.)*(pow(rnd2,3.)*sign(rnd1-.5))*2.;
-    return box(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.005;
+    return bx(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.005;
 }
 vec2 blades_norm(vec2 p) {
     mat2 k = mat2(p,p)-mat2(0.0001);

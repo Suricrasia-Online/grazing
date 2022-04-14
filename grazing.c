@@ -38,12 +38,12 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 #define DEBUG_VERT
 #define EXIT_USING_ESC_KEY
 #define TIME_RENDER
-#define BLACK_BACKGROUND
+// #define BLACK_BACKGROUND
 
 uint8_t* data;
-GtkWidget* image;
 int width = 1920;
 int height = 1080;
+bool child_dead = false;
 
 #ifdef TIME_RENDER
 GTimer* gtimer;
@@ -63,26 +63,50 @@ static gboolean check_escape(GtkWidget *widget, GdkEventKey *event)
 }
 #endif
 
-static gboolean
-on_timeout (gpointer user_data)
-{
-	(void)user_data;
-	int status;
-	pid_t result = waitpid(-1, &status, WNOHANG);
-	if (result != 0) {
-		if (*data != 1) {
-			SYS_exit_group(0);
-			__builtin_unreachable();
-		}
-		GdkPixbuf* pxbuf = gdk_pixbuf_new_from_data(data+1, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
-		gtk_image_set_from_pixbuf(GTK_IMAGE(image), pxbuf);
-#ifdef TIME_RENDER
-	  printf("render time: %f\n", g_timer_elapsed(gtimer, NULL));
-#endif
-		return G_SOURCE_REMOVE;
-	}
+// static gboolean
+// on_timeout (gpointer user_data)
+// {
+// 	(void)user_data;
+// #if 0
+// 	// printf("%p\n", user_data);
+// 	// GtkWidget* widget = (GtkWidget*)(user_data);
+// 	// int status;
+// 	siginfo_t infop;
+// 	pid_t result = SYS_waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
+// 	if (result != 0) {
+// 		if (*data != 1) {
+// 			SYS_exit_group(0);
+// 			__builtin_unreachable();
+// 		}
 
-  return G_SOURCE_CONTINUE; /* or G_SOURCE_REMOVE when you want to stop */
+// 		// GdkPixbuf* pxbuf = gdk_pixbuf_new_from_data(data+1, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
+// 		// gtk_image_set_from_pixbuf(image, pxbuf);
+// #ifdef TIME_RENDER
+// 	  printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
+// #endif
+// 		return G_SOURCE_REMOVE;
+// 	}
+// #endif
+// 	if (child_dead) {
+// #ifdef TIME_RENDER
+// 		printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
+// #endif
+// 		return G_SOURCE_REMOVE;
+// 	}
+
+//   return G_SOURCE_CONTINUE; /* or G_SOURCE_REMOVE when you want to stop */
+// }
+
+void on_child() {
+	printf("child did a thing\n");
+	child_dead = true;
+}
+
+static gboolean
+expose_event(GtkWidget *widget, GdkEventExpose *event) {
+
+	printf("draw!\n");
+	return FALSE;
 }
 
 __attribute__((__externally_visible__, __section__(".text.startup._start"), __noreturn__))
@@ -96,8 +120,9 @@ void _start() {
 	}
 
 	data = mmap(NULL, width*height*3+1, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	signal(SIGCHLD, on_child);
 
-	int pid = fork();
+	int pid = SYS_fork();
 	if (pid == 0) {
 		prctl(PR_SET_PDEATHSIG, SIGHUP);
 
@@ -125,34 +150,6 @@ void _start() {
 		sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%d,%d)\n%s\n", samples, width, height, shader_frag);
 		const char* mybuf = buffer;
 
-		//todo: amdgpu doesn't like this at all
-		// const char* shader_frag_list[] = {buffer, shader_frag};
-	// 	GLuint f = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &mybuf);
-	// 	GLuint v = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vshader);
-
-	// 	GLuint p;
-	// 	glGenProgramPipelines(1, &p);
-	// 	glUseProgramStages(p, GL_VERTEX_SHADER_BIT, v);
-	// 	glUseProgramStages(p, GL_FRAGMENT_SHADER_BIT, f);
-	// 	glBindProgramPipeline(p);
-
-	// #if defined(DEBUG_FRAG) || defined(DEBUG_VERT)
-	// 	// char charbuf[CHAR_BUFFER_SIZE];
-	// 	if ((p = glGetError()) != GL_NO_ERROR) { //use p to hold the error, lmao
-	// #ifdef DEBUG_FRAG
-	// 		glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, buffer);
-	// 		printf(buffer);
-	// #endif
-	// #ifdef DEBUG_VERT
-	// 		glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, buffer);
-	// 		printf(buffer);
-	// #endif
-	// 		goto quit_asm;
-	// 		// SYS_exit_group(p);
-	// 		__builtin_unreachable();
-	// 	}
-	// #endif
-	// 	GE_RET(vert, context, glCreateShader(GL_VERTEX_SHADER));
 		GLint compile_status = 0;
 
 		GLuint vert = context->glCreateShader(GL_VERTEX_SHADER);
@@ -227,14 +224,20 @@ void _start() {
 #pragma GCC diagnostic pop
 #endif
 
+		gtk_widget_set_app_paintable(win, true);
 		g_signal_connect(win, "destroy", &&quit_asm, NULL);
+		g_signal_connect(win, "expose-event", G_CALLBACK(expose_event), NULL);
 #ifdef EXIT_USING_ESC_KEY
 		g_signal_connect(win, "key_press_event", G_CALLBACK(check_escape), NULL);
 #endif
-		g_timeout_add (10, on_timeout, NULL);
-		image = gtk_image_new();
+		// GdkPixbuf* pixbuf = gdk_pixbuf_new_from_data(data+1, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
+		// GtkWidget* image = gtk_image_new_from_pixbuf(pixbuf);
+		// g_timeout_add (100, on_timeout, NULL);
+	// printf("%p\n", image);
+
+		// gtk_widget_queue_draw(image);
 		// g_signal_connect(glarea, "render", G_CALLBACK(on_render), NULL);
-		gtk_container_add(GTK_CONTAINER(win), image);
+		// gtk_container_add(GTK_CONTAINER(win), image);
 
 
 		char* windowed = getenv("WINDOWED");
