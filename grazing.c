@@ -29,7 +29,7 @@
 #include "sys.h"
 
 #include "shader.h"
-const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.1-1,1,1);}";
+const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.02-1,1,1);}";
 // const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(sin(gl_VertexID*2)*4,cos(gl_VertexID*2)*4,1,1);}";
 
 #define CHAR_BUFFER_SIZE 16384
@@ -43,7 +43,6 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 uint8_t* data;
 int width = 1920;
 int height = 1080;
-bool child_dead = false;
 
 #ifdef TIME_RENDER
 GTimer* gtimer;
@@ -67,10 +66,9 @@ static gboolean
 on_timeout (gpointer user_data)
 {
 	siginfo_t infop;
-	pid_t result = SYS_waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
-	if (result != 0) {
-	// if (child_dead == true) {
-		if (*data != 1) {
+	waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
+	if (infop.si_signo == SIGCHLD) {
+		if (infop.si_status != 1) {
 			SYS_exit_group(0);
 			__builtin_unreachable();
 		}
@@ -102,8 +100,9 @@ void _start() {
 	if (resolution != NULL) {
 		sscanf(resolution, "%dx%d", &width, &height);
 	}
+	int ret = 0;
 
-	data = mmap(NULL, width*height*3+1, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	data = mmap(NULL, width*height*3, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	// signal(SIGCHLD, on_child);
 
 	int pid = SYS_fork();
@@ -178,14 +177,14 @@ void _start() {
 		// context->glGenVertexArrays(1, &vao);
 		// context->glBindVertexArray(vao);
 
-	  for (int i = 0; i < 40; i += 2) {
+	  for (int i = 0; i < 200; i += 2) {
 			context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
 			context->glFinish();
 		}
 
 		// glReadBuffer(GL_COLOR_ATTACHMENT0);
-		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data+1);
-		*data=1;
+		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+		ret=1;
 	}
 	else
 	{
@@ -230,6 +229,6 @@ void _start() {
 	// write(1, data, width*height*3);
 
 quit_asm:
-	SYS_exit_group(0);
+	SYS_exit_group(ret);
 	__builtin_unreachable();
 }
