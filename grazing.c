@@ -38,7 +38,7 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 #define DEBUG_VERT
 #define EXIT_USING_ESC_KEY
 #define TIME_RENDER
-// #define BLACK_BACKGROUND
+#define BLACK_BACKGROUND
 
 uint8_t* data;
 int width = 1920;
@@ -63,60 +63,25 @@ static gboolean check_escape(ClutterActor *actor, ClutterKeyEvent *event)
 }
 #endif
 
-// static gboolean
-// on_timeout (gpointer user_data)
-// {
-// 	(void)user_data;
-// #if 0
-// 	// printf("%p\n", user_data);
-// 	// GtkWidget* widget = (GtkWidget*)(user_data);
-// 	// int status;
-// 	siginfo_t infop;
-// 	pid_t result = SYS_waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
-// 	if (result != 0) {
-// 		if (*data != 1) {
-// 			SYS_exit_group(0);
-// 			__builtin_unreachable();
-// 		}
-
-// 		// GdkPixbuf* pxbuf = gdk_pixbuf_new_from_data(data+1, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
-// 		// gtk_image_set_from_pixbuf(image, pxbuf);
-// #ifdef TIME_RENDER
-// 	  printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
-// #endif
-// 		return G_SOURCE_REMOVE;
-// 	}
-// #endif
-// 	if (child_dead) {
-// #ifdef TIME_RENDER
-// 		printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
-// #endif
-// 		return G_SOURCE_REMOVE;
-// 	}
-
-//   return G_SOURCE_CONTINUE; /* or G_SOURCE_REMOVE when you want to stop */
-// }
-
-void on_child() {
-	// printf("child did a thing\n");
-	child_dead = true;
-}
-
-
 static gboolean
 on_timeout (gpointer user_data)
 {
-	if (child_dead == true) {
+	siginfo_t infop;
+	pid_t result = SYS_waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
+	if (result != 0) {
+	// if (child_dead == true) {
 		if (*data != 1) {
 			SYS_exit_group(0);
 			__builtin_unreachable();
 		}
-		ClutterActor *stage = CLUTTER_ACTOR(user_data);
+		ClutterActor *stage = (ClutterActor *)(user_data);
 		ClutterContent *image = clutter_image_new();
-		clutter_image_set_data(CLUTTER_IMAGE(image), data, COGL_PIXEL_FORMAT_RGB_888, width, height, width*3, NULL);
+		clutter_image_set_data((ClutterImage *)(image), data, COGL_PIXEL_FORMAT_RGB_888, width, height, width*3, NULL);
 
 		clutter_actor_set_content(stage, image);
-		child_dead = false;
+#ifdef TIME_RENDER
+		printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
+#endif
 		return G_SOURCE_REMOVE;
 	}
 	return G_SOURCE_CONTINUE;
@@ -139,7 +104,7 @@ void _start() {
 	}
 
 	data = mmap(NULL, width*height*3+1, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-	signal(SIGCHLD, on_child);
+	// signal(SIGCHLD, on_child);
 
 	int pid = SYS_fork();
 	if (pid == 0) {
@@ -208,9 +173,10 @@ void _start() {
 		// context->glUniform1i(0, 0);
 
 
-		GLuint vao;
-		context->glGenVertexArrays(1, &vao);
-		context->glBindVertexArray(vao);
+		//turns out this is done in cogl_context_new for us!
+		// GLuint vao;
+		// context->glGenVertexArrays(1, &vao);
+		// context->glBindVertexArray(vao);
 
 	  for (int i = 0; i < 40; i += 2) {
 			context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
@@ -231,16 +197,18 @@ void _start() {
 #pragma GCC diagnostic pop
 
 		ClutterActor *stage = clutter_stage_new();
+#ifdef BLACK_BACKGROUND
 		ClutterColor black = {};
 		clutter_actor_set_background_color(stage, &black);
+#endif
 		// clutter_actor_set_content(stage, image);
 		// ClutterEffect *shader = clutter_shader_effect_new(CLUTTER_FRAGMENT_SHADER);
 		// ClutterTimeline *timeline = clutter_timeline_new(48000-OFFSET_MS);
 		g_signal_connect(stage, "delete-event", &&quit_asm, NULL);
 #ifdef EXIT_USING_ESC_KEY
-		g_signal_connect(stage, "key-press-event", G_CALLBACK(check_escape), NULL);
+		g_signal_connect(stage, "key-press-event", (GCallback)check_escape, NULL);
 #endif
-		g_timeout_add (100, on_timeout, stage);
+		g_timeout_add (10, on_timeout, stage);
 
 #ifdef TIME_RENDER
 		gtimer = g_timer_new();
@@ -252,9 +220,9 @@ void _start() {
 		}
 		clutter_actor_show(stage);
 		if (!windowed) {
-			clutter_stage_set_user_resizable(CLUTTER_STAGE(stage), TRUE);
-			clutter_stage_set_fullscreen(CLUTTER_STAGE(stage), TRUE);
-			clutter_stage_hide_cursor(CLUTTER_STAGE(stage));
+			clutter_stage_set_user_resizable((ClutterStage *)(stage), TRUE);
+			clutter_stage_set_fullscreen((ClutterStage *)(stage), TRUE);
+			clutter_stage_hide_cursor((ClutterStage *)(stage));
 		}
 
 		clutter_main();
