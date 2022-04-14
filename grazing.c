@@ -43,6 +43,7 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 uint8_t* data;
 int width = 1920;
 int height = 1080;
+int samples = 150;
 
 #ifdef TIME_RENDER
 GTimer* gtimer;
@@ -100,6 +101,10 @@ void _start() {
 	if (resolution != NULL) {
 		sscanf(resolution, "%dx%d", &width, &height);
 	}
+	char* samples_var = getenv("SAMPLES");
+	if (samples_var != NULL) {
+		sscanf(samples_var, "%d", &samples);
+	}
 	int ret = 0;
 
 	data = mmap(NULL, width*height*3, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -127,14 +132,12 @@ void _start() {
 		context->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
 		context->glViewport(0, 0, width, height);
 
-		char* samples = getenv("SAMPLES");
-		if (samples == NULL) samples = "150";
-		char buffer [CHAR_BUFFER_SIZE];
-		sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%d,%d)\n%s\n", samples, width, height, shader_frag);
-		const char* mybuf = buffer;
+		// sprintf(buffer, "#version 420\n#define RS vec2(%d,%d)\n%s\n", width, height, shader_frag);
+		// const char* mybuf = buffer;
 
 		GLint compile_status = 0;
 
+		char buffer [CHAR_BUFFER_SIZE];
 		GLuint vert = context->glCreateShader(GL_VERTEX_SHADER);
 		context->glShaderSource(vert, 1, &vshader, NULL);
 		context->glCompileShader(vert);
@@ -142,14 +145,13 @@ void _start() {
 		context->glGetShaderiv(vert, GL_COMPILE_STATUS, &compile_status);
 		if(compile_status == GL_FALSE) {
 			context->glGetShaderInfoLog(vert, CHAR_BUFFER_SIZE, NULL, buffer);
-			printf(buffer);
 
 			goto quit_asm;
 		}
 #endif
 
 		GLuint frag = context->glCreateShader(GL_FRAGMENT_SHADER);
-		context->glShaderSource(frag, 1, &mybuf, NULL);
+		context->glShaderSource(frag, 1, &shader_frag, NULL);
 		context->glCompileShader(frag);
 #ifdef DEBUG_FRAG
 		context->glGetShaderiv(frag, GL_COMPILE_STATUS, &compile_status);
@@ -168,9 +170,8 @@ void _start() {
 		// context->glGetProgramiv(p, GL_LINK_STATUS, &compile_status);
 		// printf("%d\n", compile_status);
 		context->glUseProgram(p);
-		// context->glVertexAttrib1f(0, 0);
-		// context->glUniform1i(0, 0);
-
+		context->glUniform1i(context->glGetUniformLocation(p,VAR_SAMPLES), samples);
+		context->glUniform2f(context->glGetUniformLocation(p,VAR_RESOLUTION), width, height);
 
 		//turns out this is done in cogl_context_new for us!
 		// GLuint vao;
@@ -183,6 +184,7 @@ void _start() {
 		}
 
 		// glReadBuffer(GL_COLOR_ATTACHMENT0);
+		context->glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
 		ret=1;
 	}

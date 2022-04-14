@@ -1,3 +1,7 @@
+// uniform sampler2D tex;
+#version 420
+uniform int samples;
+uniform vec2 resolution;
 out vec4 fragCol;
 const vec2 apos = vec2(3.4,4.1);
 //beam origin (yz plane)
@@ -483,14 +487,14 @@ vec3 pixel_color( vec2 uv )
 
 void main() {
 	fragCol = vec4(0);
-	// if (gl_FragCoord.x>RS.x||gl_FragCoord.y>RS.y) { discard; return; }
-	vec2 uv = (gl_FragCoord.xy-RS*.5)/vec2(RS.y,-RS.y);
+	// if (gl_FragCoord.x>resolution.x||gl_FragCoord.y>resolution.y) { discard; return; }
+	vec2 uv = (gl_FragCoord.xy-resolution*.5)/vec2(resolution.y,-resolution.y);
 	float sd = hash(uv.x,uv.y);
-	for (int i = 0; i < SA; i++) {
+	for (int i = 0; i < samples; i++) {
 		sd = hash(sd, 2.);
-		vec2 hs = tan(vec2(hash(sd, 9.), hash(sd, 5.)))/RS.y;
+		vec2 hs = tan(vec2(hash(sd, 9.), hash(sd, 5.)))/resolution.y;
         vec3 col = pixel_color(uv + hs);
-        // if (logo((uv+hs*.5+RS*.5/RS.y-.05)*40.)) col=vec3(1);
+        // if (logo((uv+hs*.5+resolution*.5/resolution.y-.05)*40.)) col=vec3(1);
         if (!isnan(length(col))) fragCol += vec4(col, 1); //no idea where nans are coming from
 	}
 
