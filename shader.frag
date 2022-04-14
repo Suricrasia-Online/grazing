@@ -285,9 +285,9 @@ float scene(vec3 p) {
     vec2 id = round(p.xy/60.)*60.;
     p.xy -= id;
     
-    float ang = sin(dot(id,vec2(5e4,5e3)))*2e3+2.;
+    float ang = sin(dot(id,vec2(5e4,3e3)))*2e3+2.;
     p=xy(p,sin(ang)*.1);
-    p.xy+=fract(ang)*4.-2.;
+    p.xy+=fract(ang)*8.-4.;
     vec2 sprocket = apos - vec2(cos(ang),sin(ang))*2.1;
     vec2 bearing = poop(bpos, sprocket, 4.6,6.4);
     vec2 cable = mix(bearing,bpos,2.32);
@@ -361,12 +361,12 @@ vec3 pixel_color( vec2 uv )
 {
     //uv /=1.5;
     //uv-=vec2(-.0,.5);
-    vec3 cam = normalize(vec3(1.2,uv));
-    vec3 init = vec3(-30,0,1.7);
-    cam=xz(cam,-.17);
+    vec3 cam = normalize(vec3(1.1,uv));
+    vec3 init = vec3(-25,0,1.7);
+    cam=xz(cam,-.18);
     //init=xz(init,-.1);
-    cam=xy(cam,.85);
-    init=xy(init,.75);
+    cam=xy(cam,.81);
+    init=xy(init,.73);
     // init.y-=-1.;
     //cam = vec3(1,0,0);
     //uv.x=-uv.x;
@@ -469,7 +469,7 @@ vec3 pixel_color( vec2 uv )
     
     vec3 grasscol = rnd3<.5?vec3(.52,.57,.1):vec3(0.322,0.137,0.137);
     //this grass material has no physical basis
-    if (gnd) col = grasscol*mix(.01,(sunnordt*5.+sunnordtr*.5+ggx*1.5)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
+    if (gnd) col = grasscol*mix(.01,(sunnordt*5.+sunnordtr*.5+ggx*2.)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
     return col;
 }
 
