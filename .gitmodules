@@ -1,3 +1,6 @@
 [submodule "oneKpaq"]
 	path = oneKpaq
 	url = git@github.com:blackle/oneKpaq.git
+[submodule "cogl"]
+	path = cogl
+	url = https://gitlab.gnome.org/Archive/cogl.git

@@ -1,46 +1,59 @@
 #define GL_GLEXT_PROTOTYPES
+#define COGL_COMPILATION 1
+// #define COGL_ENABLE_EXPERIMENTAL_API
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#include "config.h"
+#include <cogl/cogl-context.h>
+#include <cogl/deprecated/cogl-framebuffer-deprecated.h>
+#include <cogl/cogl-context-private.h>
+#pragma GCC diagnostic pop
+
 
 #include<stdio.h>
 #include<stdbool.h>
 #include<stdlib.h>
 #include<stdint.h>
+#include <sys/prctl.h>
+#include <sys/mman.h>
 
-#include <glib.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkkeysyms.h>
+#define __COGL_H__
+#include <clutter/clutter.h>
+
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glu.h>
 #include <GL/glext.h>
+// #include <EGL/egl.h>
 
 #include "sys.h"
 
 #include "shader.h"
-const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.1-1,1,1);}";
+const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.02-1,1,1);}";
+// const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(sin(gl_VertexID*2)*4,cos(gl_VertexID*2)*4,1,1);}";
+
+#define CHAR_BUFFER_SIZE 16384
 
 #define DEBUG_FRAG
 #define DEBUG_VERT
-#define CHAR_BUFFER_SIZE 4096
-#define TIME_RENDER
-#define EXIT_DURING_RENDER
 #define EXIT_USING_ESC_KEY
+#define TIME_RENDER
+#define BLACK_BACKGROUND
 
-bool windowed = false;
-bool rendered = false;
-bool flipped = false;
-int canvasX = 1920;
-int canvasY = 1080;
+uint8_t* data;
+int width = 1920;
+int height = 1080;
 
-GdkWindow* window;
 #ifdef TIME_RENDER
 GTimer* gtimer;
 #endif
 
 #ifdef EXIT_USING_ESC_KEY
-static gboolean check_escape(GtkWidget *widget, GdkEventKey *event)
+static gboolean check_escape(ClutterActor *actor, ClutterKeyEvent *event)
 {
-	(void)widget;
-	if (event->keyval == GDK_KEY_Escape) {
+	(void)actor;
+	if (event->keyval == CLUTTER_KEY_Escape) {
+		// goto quit_asm;
 		SYS_exit_group(0);
 		__builtin_unreachable();
 	}
@@ -49,141 +62,173 @@ static gboolean check_escape(GtkWidget *widget, GdkEventKey *event)
 }
 #endif
 
-__attribute__((always_inline))
-static inline void compile_shader()
-{
-	char* samples = getenv("SAMPLES");
-	if (samples == NULL) samples = "150";
-	char buffer [CHAR_BUFFER_SIZE];
-	sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%d,%d)\n", samples, canvasX, canvasY);
-
-	//todo: amdgpu doesn't like this at all
-	const char* shader_frag_list[] = {buffer, shader_frag};
-	GLuint f = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 2, shader_frag_list);
-
-	GLuint v = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vshader);
-
-	GLuint p;
-	glGenProgramPipelines(1, &p);
-	glUseProgramStages(p, GL_VERTEX_SHADER_BIT, v);
-	glUseProgramStages(p, GL_FRAGMENT_SHADER_BIT, f);
-	glBindProgramPipeline(p);
-
-#if defined(DEBUG_FRAG) || defined(DEBUG_VERT)
-	// char charbuf[CHAR_BUFFER_SIZE];
-	if ((p = glGetError()) != GL_NO_ERROR) { //use p to hold the error, lmao
-#ifdef DEBUG_FRAG
-		glGetProgramInfoLog(f, CHAR_BUFFER_SIZE, NULL, buffer);
-		printf(buffer);
-#endif
-#ifdef DEBUG_VERT
-		glGetProgramInfoLog(v, CHAR_BUFFER_SIZE, NULL, buffer);
-		printf(buffer);
-#endif
-		SYS_exit_group(p);
-		__builtin_unreachable();
-	}
-#endif
-
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-}
-
 static gboolean
-on_render (GtkGLArea *glarea, GdkGLContext *context)
+on_timeout (gpointer user_data)
 {
-	(void)context;
-	if (rendered || (!windowed && !(gdk_window_get_state(window) & GDK_WINDOW_STATE_FULLSCREEN))) return TRUE;
-	if (!flipped) { glClear(GL_COLOR_BUFFER_BIT); gtk_gl_area_queue_render(glarea); flipped = true; return TRUE; }
+	siginfo_t infop;
+	waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
+	if (infop.si_signo == SIGCHLD) {
+		if (infop.si_status != 1) {
+			SYS_exit_group(0);
+			__builtin_unreachable();
+		}
+		ClutterActor *stage = (ClutterActor *)(user_data);
+		ClutterContent *image = clutter_image_new();
+		clutter_image_set_data((ClutterImage *)(image), data, COGL_PIXEL_FORMAT_RGB_888, width, height, width*3, NULL);
+
+		clutter_actor_set_content(stage, image);
 #ifdef TIME_RENDER
-	gtimer = g_timer_new();
+		printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
 #endif
-	compile_shader();
-
-	rendered = true;
-	// glVertexAttrib1f(0, 0);
-
-  for (int i = 0; i < 40; i += 2) {
-		glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
-#ifdef EXIT_DURING_RENDER
-		glFinish();
-		while (gtk_events_pending()) gtk_main_iteration();
-#endif
-  }
-
-#ifdef TIME_RENDER
-#ifndef EXIT_DURING_RENDER
-	glFinish();
-#endif
-  printf("render time: %f\n", g_timer_elapsed(gtimer, NULL));
-#endif
-  return TRUE;
+		return G_SOURCE_REMOVE;
+	}
+	return G_SOURCE_CONTINUE;
 }
+// static gboolean
+// expose_event(GtkWidget *widget, GdkEventExpose *event) {
+
+// 	printf("draw!\n");
+// 	return FALSE;
+// }
+
 __attribute__((__externally_visible__, __section__(".text.startup._start"), __noreturn__))
 void _start() {
 	asm volatile("push %rax\n");
 
-	typedef void (*voidWithOneParam)(int*);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-	voidWithOneParam gtk_init_one_param = (voidWithOneParam)gtk_init;
-#pragma GCC diagnostic pop
-	(*gtk_init_one_param)(NULL);
-
-	GtkWidget *win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	glEnable(GL_MULTISAMPLE);
-	GtkWidget *glarea = gtk_gl_area_new();
-	gtk_container_add(GTK_CONTAINER(win), glarea);
-
-	g_signal_connect(win, "destroy", &&quit_asm, NULL);
-#ifdef EXIT_USING_ESC_KEY
-	g_signal_connect(win, "key_press_event", G_CALLBACK(check_escape), NULL);
-#endif
-	g_signal_connect(glarea, "render", G_CALLBACK(on_render), NULL);
-
-	gtk_widget_show_all (win);
-
-	windowed = getenv("WINDOWED");
 
 	char* resolution = getenv("RESOLUTION");
-	// int* res = &canvasX;
 	if (resolution != NULL) {
-		//failed experiment
-		// canvasX=0;canvasY=0;
-		// for (int i=0;i<2;resolution++) {
-		// 	char chr = *resolution;
-		// 	if (chr == 'x' || chr == '\0') {
-		// 		i++;res=&canvasY;
-		// 		continue;
-		// 	}
-		// 	*res *= 10;
-		// 	*res += (int)(chr-'0');
-		// }
-		sscanf(resolution, "%dx%d", &canvasX, &canvasY);
+		sscanf(resolution, "%dx%d", &width, &height);
 	}
-	// printf("%dx%d\n", canvasX, canvasY);
-	// goto quit_asm;
+	int ret = 0;
 
-	GdkGeometry hints;
-	hints.base_height = canvasY;
-	hints.min_height = canvasY;
-	hints.max_height = canvasY;
-	hints.base_width = canvasX;
-	hints.min_width = canvasX;
-	hints.max_width = canvasX;
-	gtk_window_set_geometry_hints ((GtkWindow*)win, NULL, &hints, GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_MAX_SIZE);
-	if (!windowed) gtk_window_fullscreen((GtkWindow*)win);
-	window = gtk_widget_get_window(win);
+	data = mmap(NULL, width*height*3, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	// signal(SIGCHLD, on_child);
+
+	int pid = SYS_fork();
+	if (pid == 0) {
+		prctl(PR_SET_PDEATHSIG, SIGHUP);
+
+		//extremely nasty
+		CoglError* error = NULL;
+		CoglContext* context = cogl_context_new(NULL, &error);
+		(void)context;
+
+		GLuint frameBuffer;
+		context->glGenFramebuffers(1, &frameBuffer);
+		context->glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+		GLuint t;
+		context->glGenTextures(1, &t);
+
+		context->glBindTexture(GL_TEXTURE_2D, t);
+		context->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+		context->glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
+		context->glViewport(0, 0, width, height);
+
+		char* samples = getenv("SAMPLES");
+		if (samples == NULL) samples = "150";
+		char buffer [CHAR_BUFFER_SIZE];
+		sprintf(buffer, "#version 420\n#define SA %s\n#define RS vec2(%d,%d)\n%s\n", samples, width, height, shader_frag);
+		const char* mybuf = buffer;
+
+		GLint compile_status = 0;
+
+		GLuint vert = context->glCreateShader(GL_VERTEX_SHADER);
+		context->glShaderSource(vert, 1, &vshader, NULL);
+		context->glCompileShader(vert);
+#ifdef DEBUG_VERT
+		context->glGetShaderiv(vert, GL_COMPILE_STATUS, &compile_status);
+		if(compile_status == GL_FALSE) {
+			context->glGetShaderInfoLog(vert, CHAR_BUFFER_SIZE, NULL, buffer);
+			printf(buffer);
+
+			goto quit_asm;
+		}
+#endif
+
+		GLuint frag = context->glCreateShader(GL_FRAGMENT_SHADER);
+		context->glShaderSource(frag, 1, &mybuf, NULL);
+		context->glCompileShader(frag);
+#ifdef DEBUG_FRAG
+		context->glGetShaderiv(frag, GL_COMPILE_STATUS, &compile_status);
+		if(compile_status == GL_FALSE) {
+			context->glGetShaderInfoLog(frag, CHAR_BUFFER_SIZE, NULL, buffer);
+			printf(buffer);
+
+			goto quit_asm;
+		}
+#endif
+
+		GLuint p = context->glCreateProgram();
+		context->glAttachShader(p, vert);
+		context->glAttachShader(p, frag);
+		context->glLinkProgram(p);
+		// context->glGetProgramiv(p, GL_LINK_STATUS, &compile_status);
+		// printf("%d\n", compile_status);
+		context->glUseProgram(p);
+		// context->glVertexAttrib1f(0, 0);
+		// context->glUniform1i(0, 0);
+
+
+		//turns out this is done in cogl_context_new for us!
+		// GLuint vao;
+		// context->glGenVertexArrays(1, &vao);
+		// context->glBindVertexArray(vao);
+
+	  for (int i = 0; i < 200; i += 2) {
+			context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
+			context->glFinish();
+		}
+
+		// glReadBuffer(GL_COLOR_ATTACHMENT0);
+		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+		ret=1;
+	}
+	else
+	{
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	GdkCursor* Cursor = gdk_cursor_new(GDK_BLANK_CURSOR);
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+		typedef void (*voidWithOneParam)(int*);
+		voidWithOneParam clutter_init_one_param = (voidWithOneParam)clutter_init;
+		(*clutter_init_one_param)(NULL);
 #pragma GCC diagnostic pop
-	gdk_window_set_cursor(window, Cursor);
 
-	gtk_main();
+		ClutterActor *stage = clutter_stage_new();
+#ifdef BLACK_BACKGROUND
+		ClutterColor black = {};
+		clutter_actor_set_background_color(stage, &black);
+#endif
+		// clutter_actor_set_content(stage, image);
+		// ClutterEffect *shader = clutter_shader_effect_new(CLUTTER_FRAGMENT_SHADER);
+		// ClutterTimeline *timeline = clutter_timeline_new(48000-OFFSET_MS);
+		g_signal_connect(stage, "delete-event", &&quit_asm, NULL);
+#ifdef EXIT_USING_ESC_KEY
+		g_signal_connect(stage, "key-press-event", (GCallback)check_escape, NULL);
+#endif
+		g_timeout_add (10, on_timeout, stage);
+
+#ifdef TIME_RENDER
+		gtimer = g_timer_new();
+#endif
+
+		char* windowed = getenv("WINDOWED");
+		if (windowed) {
+			clutter_actor_set_size(stage, width, height);
+		}
+		clutter_actor_show(stage);
+		if (!windowed) {
+			clutter_stage_set_user_resizable((ClutterStage *)(stage), TRUE);
+			clutter_stage_set_fullscreen((ClutterStage *)(stage), TRUE);
+			clutter_stage_hide_cursor((ClutterStage *)(stage));
+		}
+
+		clutter_main();
+	}
+	// write(1, data, width*height*3);
 
 quit_asm:
-	SYS_exit_group(0);
+	SYS_exit_group(ret);
 	__builtin_unreachable();
 }

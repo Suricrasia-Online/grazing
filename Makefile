@@ -44,9 +44,9 @@ CFLAGS += -Wextra
 CFLAGS += -no-pie
 
 CFLAGS += -nostartfiles -nodefaultlibs
-CFLAGS += `pkg-config --cflags gtk+-3.0`
+CFLAGS += `pkg-config --cflags clutter-1.0` -I./cogl -I./cogl/cogl -I./cogl/cogl/winsys
 
-LDFLAGS = -lc -lGL -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3
+LDFLAGS = -lc -lcogl -lglib-2.0 -lgobject-2.0 -lclutter-1.0
 
 .PHONY: clean check_size
 
@@ -62,7 +62,10 @@ oneKpaq/onekpaq :
 shader.h : shader.frag Makefile
 	mono ./shader_minifier.exe --no-renaming-list main,mx shader.frag -o shader.h
 
-$(PROJNAME).o : $(PROJNAME).c shader.h Makefile
+cogl/config.h : cogl/autogen.sh
+	cd cogl; bash autogen.sh; make -j8
+
+$(PROJNAME).o : $(PROJNAME).c shader.h Makefile cogl/config.h
 	gcc -c -o $@ $< $(CFLAGS)
 
 $(PROJNAME).elf.smol : $(PROJNAME).o
