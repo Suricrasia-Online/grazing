@@ -17,9 +17,9 @@
 #include <sys/prctl.h>
 #include <sys/mman.h>
 
-#include <glib.h>
-#include <gtk/gtk.h>
-#include <gdk/gdkkeysyms.h>
+#define __COGL_H__
+#include <clutter/clutter.h>
+
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glu.h>
@@ -50,10 +50,10 @@ GTimer* gtimer;
 #endif
 
 #ifdef EXIT_USING_ESC_KEY
-static gboolean check_escape(GtkWidget *widget, GdkEventKey *event)
+static gboolean check_escape(ClutterActor *actor, ClutterKeyEvent *event)
 {
-	(void)widget;
-	if (event->keyval == GDK_KEY_Escape) {
+	(void)actor;
+	if (event->keyval == CLUTTER_KEY_Escape) {
 		// goto quit_asm;
 		SYS_exit_group(0);
 		__builtin_unreachable();
@@ -98,16 +98,35 @@ static gboolean check_escape(GtkWidget *widget, GdkEventKey *event)
 // }
 
 void on_child() {
-	printf("child did a thing\n");
+	// printf("child did a thing\n");
 	child_dead = true;
 }
 
-static gboolean
-expose_event(GtkWidget *widget, GdkEventExpose *event) {
 
-	printf("draw!\n");
-	return FALSE;
+static gboolean
+on_timeout (gpointer user_data)
+{
+	if (child_dead == true) {
+		if (*data != 1) {
+			SYS_exit_group(0);
+			__builtin_unreachable();
+		}
+		ClutterActor *stage = CLUTTER_ACTOR(user_data);
+		ClutterContent *image = clutter_image_new();
+		clutter_image_set_data(CLUTTER_IMAGE(image), data, COGL_PIXEL_FORMAT_RGB_888, width, height, width*3, NULL);
+
+		clutter_actor_set_content(stage, image);
+		child_dead = false;
+		return G_SOURCE_REMOVE;
+	}
+	return G_SOURCE_CONTINUE;
 }
+// static gboolean
+// expose_event(GtkWidget *widget, GdkEventExpose *event) {
+
+// 	printf("draw!\n");
+// 	return FALSE;
+// }
 
 __attribute__((__externally_visible__, __section__(".text.startup._start"), __noreturn__))
 void _start() {
@@ -204,62 +223,41 @@ void _start() {
 	}
 	else
 	{
-		typedef void (*voidWithOneParam)(int*);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
-		voidWithOneParam gtk_init_one_param = (voidWithOneParam)gtk_init;
+		typedef void (*voidWithOneParam)(int*);
+		voidWithOneParam clutter_init_one_param = (voidWithOneParam)clutter_init;
+		(*clutter_init_one_param)(NULL);
 #pragma GCC diagnostic pop
-		(*gtk_init_one_param)(NULL);
+
+		ClutterActor *stage = clutter_stage_new();
+		ClutterColor black = {};
+		clutter_actor_set_background_color(stage, &black);
+		// clutter_actor_set_content(stage, image);
+		// ClutterEffect *shader = clutter_shader_effect_new(CLUTTER_FRAGMENT_SHADER);
+		// ClutterTimeline *timeline = clutter_timeline_new(48000-OFFSET_MS);
+		g_signal_connect(stage, "delete-event", &&quit_asm, NULL);
+#ifdef EXIT_USING_ESC_KEY
+		g_signal_connect(stage, "key-press-event", G_CALLBACK(check_escape), NULL);
+#endif
+		g_timeout_add (100, on_timeout, stage);
 
 #ifdef TIME_RENDER
 		gtimer = g_timer_new();
 #endif
-		GtkWidget *win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-
-#ifdef BLACK_BACKGROUND
-		GdkRGBA black = {0,0,0,0};
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-		gtk_widget_override_background_color(win, GTK_STATE_FLAG_NORMAL, &black);
-#pragma GCC diagnostic pop
-#endif
-
-		gtk_widget_set_app_paintable(win, true);
-		g_signal_connect(win, "destroy", &&quit_asm, NULL);
-		g_signal_connect(win, "expose-event", G_CALLBACK(expose_event), NULL);
-#ifdef EXIT_USING_ESC_KEY
-		g_signal_connect(win, "key_press_event", G_CALLBACK(check_escape), NULL);
-#endif
-		// GdkPixbuf* pixbuf = gdk_pixbuf_new_from_data(data+1, GDK_COLORSPACE_RGB, false, 8, width, height, 3*width, NULL, NULL);
-		// GtkWidget* image = gtk_image_new_from_pixbuf(pixbuf);
-		// g_timeout_add (100, on_timeout, NULL);
-	// printf("%p\n", image);
-
-		// gtk_widget_queue_draw(image);
-		// g_signal_connect(glarea, "render", G_CALLBACK(on_render), NULL);
-		// gtk_container_add(GTK_CONTAINER(win), image);
-
 
 		char* windowed = getenv("WINDOWED");
+		if (windowed) {
+			clutter_actor_set_size(stage, width, height);
+		}
+		clutter_actor_show(stage);
+		if (!windowed) {
+			clutter_stage_set_user_resizable(CLUTTER_STAGE(stage), TRUE);
+			clutter_stage_set_fullscreen(CLUTTER_STAGE(stage), TRUE);
+			clutter_stage_hide_cursor(CLUTTER_STAGE(stage));
+		}
 
-		GdkGeometry hints;
-		hints.base_height = height;
-		hints.min_height = height;
-		hints.max_height = height;
-		hints.base_width = width;
-		hints.min_width = width;
-		hints.max_width = width;
-		gtk_window_set_geometry_hints ((GtkWindow*)win, NULL, &hints, GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_MAX_SIZE);
-		gtk_widget_show_all (win);
-		if (!windowed) gtk_window_fullscreen((GtkWindow*)win);
-		GdkWindow* window = gtk_widget_get_window(win);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-		GdkCursor* Cursor = gdk_cursor_new(GDK_BLANK_CURSOR);
-#pragma GCC diagnostic pop
-		gdk_window_set_cursor(window, Cursor);
-
-		gtk_main();
+		clutter_main();
 	}
 	// write(1, data, width*height*3);
 

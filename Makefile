@@ -44,9 +44,9 @@ CFLAGS += -Wextra
 CFLAGS += -no-pie
 
 CFLAGS += -nostartfiles -nodefaultlibs
-CFLAGS += `pkg-config --cflags gtk+-3.0` -I./cogl -I./cogl/cogl -I./cogl/cogl/winsys
+CFLAGS += `pkg-config --cflags clutter-1.0` -I./cogl -I./cogl/cogl -I./cogl/cogl/winsys
 
-LDFLAGS = -lc -lcogl -lglib-2.0 -lgobject-2.0 -lgtk-3 -lgdk-3 -lgdk_pixbuf-2.0
+LDFLAGS = -lc -lcogl -lglib-2.0 -lclutter-1.0 -lgobject-2.0
 
 .PHONY: clean check_size
 

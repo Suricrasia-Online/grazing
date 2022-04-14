@@ -497,5 +497,6 @@ void main() {
 	fragCol = smoothstep(-0.2,1.2,sqrt(
         fragCol/fragCol.w/4.*(1.0 - dot(uv,uv)*0.5))
     ) + sd*.015; //vignette/grade/"film grain"
+    fragCol.xyz=fragCol.yzx;
     // fragCol.xyz*=mat3(1.7,-.2,-.4,-.3,1.4,-.1,-.1,-.1,1.2);
 }
