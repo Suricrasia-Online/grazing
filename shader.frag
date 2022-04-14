@@ -1,17 +1,24 @@
-// uniform sampler2D tex;
 #version 420
+#define cn(p) (length(max(p,0.)) + min(0.,mx(p)))
+#define bx(p,d) cn(abs(p)-(d/2.))
+//todo: make tr less..... like this
+#define tr(p,r) (asin(sin((p)*r))/r)
 uniform int samples;
 uniform vec2 resolution;
 out vec4 fragCol;
-const vec2 apos = vec2(3.4,4.1);
+// const vec2 vec2(3.4,4.1) = vec2(3.4,4.1);
 //beam origin (yz plane)
-const vec2 bpos = vec2(-1.8,11.5-.95);
+// const vec2 vec2(-1.8,10.5500) = vec2(-1.8,10.5500);
 
 //axis rotation functions. maybe there's a better way
 vec3 xy(vec3 p,float r){p.xy*=mat2(cos(r),sin(r),-sin(r),cos(r));return p;}
 vec3 yz(vec3 p,float r){p.yz*=mat2(cos(r),sin(r),-sin(r),cos(r));return p;}
 vec3 xz(vec3 p,float r){p.xz*=mat2(cos(r),sin(r),-sin(r),cos(r));return p;}
 
+float smin(float a, float b, float k) {
+    float h = max(0.,k-abs(a-b))/k;
+    return min(a,b)-h*h*h*k/6.;
+}
 //fancy repetition to make the dictionary compressor happy :3
 float mx(vec2 p) {
     return max(p.x,p.y);
@@ -22,18 +29,10 @@ float mx(vec3 p) {
 float mx(vec4 p) {
     return max(p.x,mx(p.yzw));
 }
-#define cn(p) (length(max(p,0.)) + min(0.,mx(p)))
-#define bx(p,d) cn(abs(p)-(d/2.))
-//todo: make tr less..... like this
-#define tr(p,r) (asin(sin((p)*r))/r)
 
 float hex(vec2 p, vec3 rad) {
     vec3 p2 = vec3(.81,-.4,-.4)*p.y + vec3(0,-.71,.71)*p.x;
     return bx(p2,vec3(rad));
-}
-float smin(float a, float b, float k) {
-    float h = max(0.,k-abs(a-b))/k;
-    return min(a,b)-h*h*h*k/6.;
 }
 
 float feature(vec3 p, float d, float w, float t) {
@@ -177,7 +176,7 @@ float fence(vec3 p) {
 }
 
 float gearbx(vec3 p) {
-    p.yz -= apos;
+    p.yz -= vec2(3.4,4.1);
     //return bx(p,vec3(1.4,3.,2.));
     float b = cn(vec2(hex(p.yz,vec3(1)),abs(p.x)-.5))-0.1000;
     b = smin(bx(vec2(length(p.yz),p.x),vec2(0.4000,2.2)),b,0.6000);
@@ -213,7 +212,7 @@ float tex(vec3 x) {
 }
 
 float counterweights(vec3 p, float ang) {
-    p.yz -= apos;
+    p.yz -= vec2(3.4,4.1);
     p.x = abs(p.x)-1.2;
     p=yz(p,ang);
     float oy = p.y;
@@ -274,7 +273,7 @@ float wireline(vec3 p, float bz) {
 }
 
 vec2 poop(vec2 a, vec2 b, float d1, float d3) {
-    float d2 = distance(b,a);
+    float d2 = length(b-a);
     float p = (d1*d1+d2*d2-d3*d3)/d2/2.;
     float o = sqrt(d1*d1-p*p);
     return a + mat4x2(-p,-o,o,-p,p,o,-o,p)*vec4(a,b)/d2;
@@ -292,10 +291,10 @@ float scene(vec3 p) {
     float ang = sin(dot(id,vec2(5e4,3e3)))*2e3+2.;
     p=xy(p,sin(ang)*.1);
     p.xy+=fract(ang)*8.-4.;
-    vec2 sprocket = apos - vec2(cos(ang),sin(ang))*2.1;
-    vec2 bearing = poop(bpos, sprocket, 4.6,6.4);
-    vec2 cable = mix(bearing,bpos,2.32);
-    vec2 rel = bearing-bpos;
+    vec2 sprocket = vec2(3.4,4.1) - vec2(cos(ang),sin(ang))*2.1;
+    vec2 bearing = poop(vec2(-1.8,10.5500), sprocket, 4.6,6.4);
+    vec2 cable = mix(bearing,vec2(-1.8,10.5500),2.32);
+    vec2 rel = bearing-vec2(-1.8,10.5500);
     vec2 rel2 = sprocket-bearing;
     float ang2 = atan(-rel.y,rel.x);
     float ang3 = -atan(rel2.x,rel2.y);
@@ -304,7 +303,7 @@ float scene(vec3 p) {
     float pumpjack = base(p);
     pumpjack = min(pumpjack, chonker(p));
     pumpjack=min(pumpjack,ladder_all(yz(p*vec3(1,-1,1),.2)-vec3(1.,4.3,4.75))); //todo: flip inside ladder_all..?
-    vec3 pbeam = (p-vec3(0,bpos))*vec3(1,-1,1);
+    vec3 pbeam = (p-vec3(0,vec2(-1.8,10.5500)))*vec3(1,-1,1);
     pbeam=yz(pbeam,ang2);
     pumpjack=min(pumpjack,walking_beam(pbeam));
     pumpjack=min(pumpjack,legs(p));
@@ -320,8 +319,8 @@ float scene(vec3 p) {
     /*debugging for linkage positions
     pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,sprocket))-.2);
     pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,bearing))-.2);
-    pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,bpos))-.2);
-    pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,apos))-.2);
+    pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,vec2(-1.8,10.5500)))-.2);
+    pumpjack = min(pumpjack, length(p-vec3(sign(p.x)*2.,vec2(3.4,4.1)))-.2);
     */
     // return pumpjack;
     //return ladder_all(p);
@@ -384,7 +383,7 @@ vec3 pixel_color( vec2 uv )
         hit = dist*dist < 1e-7;
         p += dist*cam;
         //cam = normalize(cam+tex(p*.05)*dist*vec3(0,0,0.00005));
-        if(distance(p,init)>550.)break;
+        if(length(p-init)>550.)break;
     }
     float warp = cos(cam.z*10.+cam.x*5.)*.1;
     float tnear = (.25-init.z+warp) / cam.z;
@@ -409,7 +408,7 @@ vec3 pixel_color( vec2 uv )
             vec3 p2 = init+cam*(tnear+tt);
             //blheight = cos(p2.x*.5)*cos(p2.y*.5)*.5+.5;
             if (blades(crds)>tnear*.0001) continue;
-            if ((tnear+tt) < distance(p,init) || !hit) {
+            if ((tnear+tt) < length(p-init) || !hit) {
                 p = p2;
                 //todo: better normal calc
                 //this is so hilariously silly idk why it works
@@ -422,7 +421,7 @@ vec3 pixel_color( vec2 uv )
             }
             break;
         }
-        if (tfar<distance(p,init) || !hit) {
+        if (tfar<length(p-init) || !hit) {
             p = init+cam*tfar;
             n = vec3(0,0,1);
             hit = true;
@@ -433,7 +432,7 @@ vec3 pixel_color( vec2 uv )
 
     //if (!hit) return vec3(.86,1.35,2.44);
     float cloud = tex(cam*.1+cam.z)*.015;
-    if (!hit) return mix(vec3(.4,1.5,2.8),vec3(4.3,5.9,6.6),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
+    if (!hit) return mix(vec3(.4,1.5,2.8),vec3(4.3,5.9,6.6),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,length(p-init));
     vec3 r = reflect(cam, n);
     vec3 h = normalize(cam-dir);
     float ao = smoothstep(-.1,.1,scene(p+n*.1))*smoothstep(-.5,.5,scene(p+n*.5))*smoothstep(-1.,1.,scene(p+n));
@@ -462,10 +461,10 @@ vec3 pixel_color( vec2 uv )
     float minn = 1e4;
     for (int j = 0; j < 60; j++) {
         float dist = scene(p);
-        minn=min(minn,dist/distance(p,init));
+        minn=min(minn,dist/length(p-init));
         if (dist < 0.0001) {minn=0.; break;}
         p += dist*dir;
-        if(distance(p,init)>50.)break;
+        if(length(p-init)>50.)break;
     }
 
     minn = pow(max(minn,0.),.1);
