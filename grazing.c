@@ -66,10 +66,10 @@ static gboolean check_escape(ClutterActor *actor, ClutterKeyEvent *event)
 static gboolean
 on_timeout (gpointer user_data)
 {
-	siginfo_t infop;
-	waitid(P_ALL, 0, &infop, WNOHANG | WEXITED);
-	if (infop.si_signo == SIGCHLD) {
-		if (infop.si_status != 1) {
+	int status;
+	int res = waitpid(-1, &status, WNOHANG);
+	if (res > 0) {
+		if (WEXITSTATUS(status) != 1) {
 			SYS_exit_group(0);
 			__builtin_unreachable();
 		}
@@ -79,7 +79,7 @@ on_timeout (gpointer user_data)
 
 		clutter_actor_set_content(stage, image);
 #ifdef TIME_RENDER
-		printf("time: %f\n", g_timer_elapsed(gtimer, NULL));
+		printf("time: %.3f\n", g_timer_elapsed(gtimer, NULL));
 #endif
 		return G_SOURCE_REMOVE;
 	}
@@ -91,6 +91,8 @@ on_timeout (gpointer user_data)
 // 	printf("draw!\n");
 // 	return FALSE;
 // }
+static const char* const resolution_pattern = "%dx%d";
+static const char* const samples_pattern = resolution_pattern+3;
 
 __attribute__((__externally_visible__, __section__(".text.startup._start"), __noreturn__))
 void _start() {
@@ -99,11 +101,11 @@ void _start() {
 
 	char* resolution = getenv("RESOLUTION");
 	if (resolution != NULL) {
-		sscanf(resolution, "%dx%d", &width, &height);
+		sscanf(resolution, resolution_pattern, &width, &height);
 	}
 	char* samples_var = getenv("SAMPLES");
 	if (samples_var != NULL) {
-		sscanf(samples_var, "%d", &samples);
+		sscanf(samples_var, samples_pattern, &samples);
 	}
 	int ret = 0;
 
@@ -145,6 +147,7 @@ void _start() {
 		context->glGetShaderiv(vert, GL_COMPILE_STATUS, &compile_status);
 		if(compile_status == GL_FALSE) {
 			context->glGetShaderInfoLog(vert, CHAR_BUFFER_SIZE, NULL, buffer);
+			printf(buffer);
 
 			goto quit_asm;
 		}

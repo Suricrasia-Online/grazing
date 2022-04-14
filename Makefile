@@ -61,6 +61,8 @@ oneKpaq/onekpaq :
 
 shader.h : shader.frag Makefile
 	mono ./shader_minifier.exe --no-renaming-list main,mx shader.frag -o shader.h
+	sed -i 's/return/rt/g;s/ret_urn/return/g;' shader.h
+	sed -i 's/length/ln/g;s/len_gth/length/g;' shader.h
 
 cogl/config.h : cogl/autogen.sh
 	cd cogl; bash autogen.sh; make -j8

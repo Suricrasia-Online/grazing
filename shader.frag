@@ -3,6 +3,8 @@
 #define bx(p,d) cn(abs(p)-(d/2.))
 //todo: make tr less..... like this
 #define tr(p,r) (asin(sin((p)*r))/r)
+#define rt ret_urn
+#define ln len_gth
 uniform int samples;
 uniform vec2 resolution;
 out vec4 fragCol;
