@@ -429,7 +429,7 @@ vec3 pixel_color( vec2 uv )
 
     //if (!hit) return vec3(.86,1.35,2.44);
     float cloud = tex(cam*.1+cam.z)*.015;
-    if (!hit) return mix(vec3(.4,1.5,2.8),vec3(4.3,5.9,6.6),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
+    if (!hit) return mix(vec3(1.5,2.8,.4),vec3(5.9,6.6,4.3),pow(1.-smoothstep(-0.1,1.1,cam.z-cloud),10.));//*smoothstep(100.,400.,distance(p,init));
     vec3 r = reflect(cam, n);
     vec3 h = normalize(cam-dir);
     float ao = smoothstep(-.1,.1,scene(p+n*.1))*smoothstep(-.5,.5,scene(p+n*.5))*smoothstep(-1.,1.,scene(p+n));
@@ -449,8 +449,8 @@ vec3 pixel_color( vec2 uv )
     // vec3 skydiff = mix(ground,sky,n.z*.5+.5)*sqrt(ao);
     // vec3 sundiff = sunnordt*vec3(5);
     
-    vec3 skyspec = mix(mix(vec3(0),vec3(.05,.05,.01),smoothstep(-1.1,-.7,n.z)),vec3(.04,.045,.045),smoothstep(-.6,.6,r.z))*sqrt(ao);
-    vec3 sunspec = ggx*sqrt(sunnordt)*.3*vec3(2.2,1.8,1.5);//ggx approximation
+    vec3 skyspec = mix(mix(vec3(0),vec3(.05,.01,.05),smoothstep(-1.1,-.7,n.z)),vec3(.045,.045,.04),smoothstep(-.6,.6,r.z))*sqrt(ao);
+    vec3 sunspec = ggx*sqrt(sunnordt)*.3*vec3(1.8,1.5,2.2);//ggx approximation
     
     
     init = p;
@@ -467,7 +467,7 @@ vec3 pixel_color( vec2 uv )
     minn = pow(max(minn,0.),.1);
     vec3 col = (sunspec*minn+skyspec);
     
-    vec3 grasscol = rnd3<.5?vec3(.52,.57,.1):vec3(0.322,0.137,0.137);
+    vec3 grasscol = rnd3<.5?vec3(.57,.1,.52):vec3(0.137,0.137,0.322);
     //this grass material has no physical basis
     if (gnd) col = grasscol*mix(.01,(sunnordt*5.+sunnordtr*.5+ggx*1.5)*minn+.4,atten*ao*(minn*.5+.5));//minn*vec3(.1,.2,.05);
     return col;
@@ -497,6 +497,6 @@ void main() {
 	fragCol = smoothstep(-0.2,1.2,sqrt(
         fragCol/fragCol.w/4.*(1.0 - dot(uv,uv)*0.5))
     ) + sd*.015; //vignette/grade/"film grain"
-    fragCol.xyz=fragCol.yzx;
+    // fragCol.xyz=fragCol.yzx;
     // fragCol.xyz*=mat3(1.7,-.2,-.4,-.3,1.4,-.1,-.1,-.1,1.2);
 }
