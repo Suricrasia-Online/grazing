@@ -6,6 +6,7 @@
 #define rt ret_urn
 #define ln len_gth
 uniform int samples;
+uniform float time;
 uniform vec2 resolution;
 out vec4 fragCol;
 // const vec2 vec2(3.4,4.1) = vec2(3.4,4.1);
@@ -293,7 +294,7 @@ float scene(vec3 p) {
     float ang = sin(dot(id,vec2(5e4,3e3)))*2e3+2.;
     p=xy(p,sin(ang)*.1);
     p.xy+=fract(ang)*8.-4.;
-    vec2 sprocket = vec2(3.4,4.1) - vec2(cos(ang),sin(ang))*2.1;
+    vec2 sprocket = vec2(3.4,4.1) - vec2(cos(ang + time),sin(ang + time))*2.1;
     vec2 bearing = poop(vec2(-1.8,10.5500), sprocket, 4.6,6.4);
     vec2 cable = mix(bearing,vec2(-1.8,10.5500),2.32);
     vec2 rel = bearing-vec2(-1.8,10.5500);
@@ -314,7 +315,7 @@ float scene(vec3 p) {
     pumpjack=min(pumpjack,gearbx(p));
     vec3 epos = p-vec3(0.,bearing);
     epos = yz(epos,ang3);
-    pumpjack=min(pumpjack,counterweights(p, ang));
+    pumpjack=min(pumpjack,counterweights(p, ang + time));
     pumpjack=min(pumpjack,equalizer(epos));
     return min(pumpjack,wireline(p,cable.y));
     
@@ -354,7 +355,7 @@ float blades(vec2 p,float o) {
     rnd1 =fract(sin(id*777.+o)*1e5);
     rnd2 =fract(sin(id*999.+o)*1e4);
     rnd3 =fract(sin(id*555.+o)*1e3);
-    p.x += pow(p.y,2.)*(pow(rnd2,3.)*sign(rnd1-.5))*2.;
+    p.x += pow(p.y,2.)*(pow(rnd2,3.)*sign(rnd1-.5) + sin(time+rnd2*10)*0.1 )*2.;
     return bx(p,vec2(.004-p.y*.02,.5-pow(rnd3,2.)*.5))-.005;
 }
 vec2 blades_norm(vec2 p,float o) {
@@ -367,7 +368,7 @@ vec3 pixel_color( vec2 uv )
     //uv /=1.5;
     //uv-=vec2(-.0,.5);
     vec3 cam = normalize(vec3(1.1,uv));
-    vec3 init = vec3(-25,0,1.7);
+    vec3 init = vec3(-25,0,1.7+cos(time/2)*.01);
     cam=xz(cam,-.19);
     //init=xz(init,-.1);
     cam=xy(cam,.81);

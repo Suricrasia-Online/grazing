@@ -29,7 +29,7 @@
 #include "sys.h"
 
 #include "shader.h"
-const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID%2*2-1,gl_VertexID/2*.02-1,1,1);}";
+const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(gl_VertexID/2*.02-1,gl_VertexID%2*2-1,1,1);}";
 // const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void main(){gl_Position=vec4(sin(gl_VertexID*2)*4,cos(gl_VertexID*2)*4,1,1);}";
 
 #define CHAR_BUFFER_SIZE 16384
@@ -39,6 +39,27 @@ const char* vshader = "#version 420\nout gl_PerVertex{vec4 gl_Position;};void ma
 #define EXIT_USING_ESC_KEY
 #define TIME_RENDER
 #define BLACK_BACKGROUND
+
+#define PROP_USER_RESIZABLE 7
+#define PROP_CURSOR_VISIBLE 4
+
+struct GValue2
+{
+  /*< private >*/
+  GType		g_type;
+  /* public for GTypeValueTable methods */
+  union {
+    gint	v_int;
+    guint	v_uint;
+    glong	v_long;
+    gulong	v_ulong;
+    gint64      v_int64;
+    guint64     v_uint64;
+    gfloat	v_float;
+    gdouble	v_double;
+    gpointer	v_pointer;
+  } data[2];
+};
 
 uint8_t* data;
 int width = 1920;
@@ -107,12 +128,12 @@ void _start() {
 	if (samples_var != NULL) {
 		sscanf(samples_var, samples_pattern, &samples);
 	}
-	int ret = 0;
+	// int ret = 0;
 
 	data = mmap(NULL, width*height*3, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	// signal(SIGCHLD, on_child);
 
-	int pid = SYS_fork();
+	int pid = 0;//SYS_fork();
 	if (pid == 0) {
 		prctl(PR_SET_PDEATHSIG, SIGHUP);
 
@@ -176,20 +197,28 @@ void _start() {
 		context->glUniform1i(context->glGetUniformLocation(p,VAR_SAMPLES), samples);
 		context->glUniform2f(context->glGetUniformLocation(p,VAR_RESOLUTION), width, height);
 
-		//turns out this is done in cogl_context_new for us!
-		// GLuint vao;
-		// context->glGenVertexArrays(1, &vao);
-		// context->glBindVertexArray(vao);
+		for (int t = 0; t < 120; t++) {
+			float time = t / 60.f * 2. * 3.141592;
+			context->glUniform1f(context->glGetUniformLocation(p,VAR_TIME), time);
 
-	  for (int i = 0; i < 200; i += 2) {
-			context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
-			context->glFinish();
+			//turns out this is done in cogl_context_new for us!
+			// GLuint vao;
+			// context->glGenVertexArrays(1, &vao);
+			// context->glBindVertexArray(vao);
+
+		  for (int i = 0; i < 200; i += 2) {
+				context->glDrawArrays(GL_TRIANGLE_STRIP, i, 4);
+				context->glFinish();
+			}
+
+			// glReadBuffer(GL_COLOR_ATTACHMENT0);
+			context->glPixelStorei(GL_PACK_ALIGNMENT, 1);
+			context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+			SYS_write(1, data, width*height*3);
 		}
-
-		// glReadBuffer(GL_COLOR_ATTACHMENT0);
-		context->glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		context->glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
-		ret=1;
+		// ret=1;
+		SYS_exit_group(1);
+		__builtin_unreachable();
 	}
 	else
 	{
@@ -201,6 +230,9 @@ void _start() {
 #pragma GCC diagnostic pop
 
 		ClutterActor *stage = clutter_stage_new();
+		ClutterStageClass *sklass = CLUTTER_STAGE_GET_CLASS(stage);
+		ClutterActorClass *aklass = CLUTTER_ACTOR_GET_CLASS(stage);
+		GObjectClass *oklass = G_OBJECT_CLASS (aklass);
 #ifdef BLACK_BACKGROUND
 		ClutterColor black = {};
 		clutter_actor_set_background_color(stage, &black);
@@ -208,9 +240,11 @@ void _start() {
 		// clutter_actor_set_content(stage, image);
 		// ClutterEffect *shader = clutter_shader_effect_new(CLUTTER_FRAGMENT_SHADER);
 		// ClutterTimeline *timeline = clutter_timeline_new(48000-OFFSET_MS);
-		g_signal_connect(stage, "delete-event", &&quit_asm, NULL);
+		sklass->delete_event = &&quit_asm;
+		// g_signal_connect(stage, "delete-event", &&quit_asm, NULL);
 #ifdef EXIT_USING_ESC_KEY
-		g_signal_connect(stage, "key-press-event", (GCallback)check_escape, NULL);
+		// g_signal_connect(stage, "key-press-event", (GCallback)check_escape, NULL);
+		aklass->key_press_event = check_escape;
 #endif
 		g_timeout_add (10, on_timeout, stage);
 
@@ -224,6 +258,14 @@ void _start() {
 		}
 		clutter_actor_show(stage);
 		if (!windowed) {
+
+			// struct GValue2 myval;
+			// myval.g_type = G_TYPE_BOOLEAN;
+			// myval.data[0].v_int = true;
+			// oklass->set_property(stage, PROP_USER_RESIZABLE, &myval, NULL);
+			// myval.data[0].v_int = false;
+			// oklass->set_property(stage, PROP_CURSOR_VISIBLE, &myval, NULL);
+
 			clutter_stage_set_user_resizable((ClutterStage *)(stage), TRUE);
 			clutter_stage_set_fullscreen((ClutterStage *)(stage), TRUE);
 			clutter_stage_hide_cursor((ClutterStage *)(stage));
@@ -234,6 +276,6 @@ void _start() {
 	// write(1, data, width*height*3);
 
 quit_asm:
-	SYS_exit_group(ret);
+	SYS_exit_group(0);
 	__builtin_unreachable();
 }
